@@ -169,5 +169,6 @@ def pkg_process_manifest(name, manifest, **kwargs):
 
     # TODO: making this return something like a pkg_filegroup requires some sort
     # of "aggregator" rule.  The original pkg_filegroup framework was not
-    # designed this way, and it needs to be rethought.
+    # designed this way, and it needs to be rethought to better facilitate this
+    # purpose.
     return rules
