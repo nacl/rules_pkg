@@ -14,18 +14,20 @@
 
 load(":manifest.bzl", "pkg_process_manifest")
 load("//experimental:rpm.bzl", "pkg_rpm")
+manifest = [
+    # action    dest                            attributes...           source
+    ["copy",    "/usr/bin/",                    "unix=0755",                "hello"],
+    ["copy",    "/usr/bin/hello2",              "unix=0700",                "hello"],
+    ["mkdir",   "/dir",                         "unix=0755",                "IGNORED"],
+    ["mkdir",   "/dir/child",                   "unix=0755",                "IGNORED"],
+    ["mkdir",   "/dir/child/other-child",       "unix=0755;section=docdir", "IGNORED"],
+    ["symlink", "/dir/child/some-symlink-dest", "-",                        "/usr/bin/symlink-source"]
+]
+
 
 arr = pkg_process_manifest(
     name = "manifest",
-    manifest = [
-        # action    dest                            attributes...           source
-        ["copy",    "/usr/bin/",                    "unix=0755",                "hello"],
-        ["copy",    "/usr/bin/hello2",              "unix=0700",                "hello"],
-        ["mkdir",   "/dir",                         "unix=0755",                "IGNORED"],
-        ["mkdir",   "/dir/child",                   "unix=0755",                "IGNORED"],
-        ["mkdir",   "/dir/child/other-child",       "unix=0755;section=docdir", "IGNORED"],
-        ["symlink", "/dir/child/some-symlink-dest", "-",                        "/usr/bin/symlink-source"]
-    ]
+    manifest = manifest
 )
 
 pkg_rpm(
