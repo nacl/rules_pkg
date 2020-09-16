@@ -46,13 +46,13 @@ Normal pkg_filegroup's should be used in the above cases.
 
 _MANIFEST_ROW_SIZE = 4
 
-def _manifest_process_copy(name, destination, attrs, source, **kwargs):
+def _manifest_process_copy(name, destination, attrs, source, default_user, default_group, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
     unix_perms = '-'
-    user = '-'
-    group = '-'
+    user = default_user
+    group = default_group
     for decl in attrs.split(';'):
         (attr, _, value) = decl.partition('=')
         if attr not in allowed_attrs:
@@ -84,13 +84,13 @@ def _manifest_process_copy(name, destination, attrs, source, **kwargs):
     )
 
 
-def _manifest_process_mkdir(name, destination, attrs, source, **kwargs):
+def _manifest_process_mkdir(name, destination, attrs, source, default_user, default_group, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
     unix_perms = '-'
-    user = '-'
-    group = '-'
+    user = default_user
+    group = default_group
     for decl in attrs.split(';'):
         (attr, _, value) = decl.partition('=')
         if attr not in allowed_attrs:
@@ -112,13 +112,13 @@ def _manifest_process_mkdir(name, destination, attrs, source, **kwargs):
         **kwargs
     )
 
-def _manifest_process_symlink(name, destination, attrs, source, **kwargs):
+def _manifest_process_symlink(name, destination, attrs, source, default_user, default_group, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
     unix_perms = '0777'
-    user = '-'
-    group = '-'
+    user = default_user
+    group = default_group
 
     if attrs != '-':
         for decl in attrs.split(';'):
@@ -142,7 +142,7 @@ def _manifest_process_symlink(name, destination, attrs, source, **kwargs):
         **kwargs
     )
 
-def pkg_process_manifest(name, manifest, **kwargs):
+def pkg_process_manifest(name, manifest, default_user='-', default_group='-',  **kwargs):
     rules = []
 
     for idx, desc in enumerate(manifest):
@@ -155,11 +155,11 @@ def pkg_process_manifest(name, manifest, **kwargs):
 
         rule_name = "{}_manifest_elem_{}".format(name, idx)
         if action == "copy": 
-            _manifest_process_copy(rule_name, destination, attrs, source, **kwargs)
+            _manifest_process_copy(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
         elif action == "mkdir":
-            _manifest_process_mkdir(rule_name, destination, attrs, source, **kwargs)
+            _manifest_process_mkdir(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
         elif action == "symlink":
-            _manifest_process_symlink(rule_name, destination, attrs, source, **kwargs)
+            _manifest_process_symlink(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
         else: 
             fail("Package description index {} malformed (unknown action {})".format(
                 idx, action
