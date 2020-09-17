@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//experimental:pkg_filegroup.bzl", "pkg_filegroup", "pkg_mkdirs", "pkg_mklinks")
-
 """This module provides an alternate way to specify package contents using a
 csv-like "manifest" description.
 
@@ -30,19 +28,19 @@ Normal pkg_filegroup's should be used in the above cases.
 
 """
 
+load("//experimental:pkg_filegroup.bzl", "pkg_filegroup", "pkg_mkdirs", "pkg_mklinks")
+
 # Example manifest:
 #
-# Buildifier probably will almost certanily be cranky about this.  Might have to
-# change the tables.
-[
-    # action     dest                            attributes...           source
-    ["copy",    "/some/destination/directory/",  "unix=0755", ":target-or-label"],
-    ["copy",    "/some/destination/binary-name", "unix=0755", ":target-or-label"],
-    ["mkdir",   "/dir",                          "unix=0755", "IGNORED"],
-    ["mkdir",   "/dir/child",                    "unix=0755", "IGNORED"],
-    ["mkdir",   "/dir/child/other-child",        "unix=0755", "IGNORED"],
-    ["symlink", "target",                        "unix=0777", "source"],
-]
+#[
+#    # action     dest                            attributes...           source
+#    ("copy",    "/some/destination/directory/",  "unix=0755", ":target-or-label"),
+#    ("copy",    "/some/destination/binary-name", "unix=0755", ":target-or-label"),
+#    ("mkdir",   "/dir",                          "unix=0755", "IGNORED"),
+#    ("mkdir",   "/dir/child",                    "unix=0755", "IGNORED"),
+#    ("mkdir",   "/dir/child/other-child",        "unix=0755", "IGNORED"),
+#    ("symlink", "target",                        "unix=0777", "source"),
+#]
 
 _MANIFEST_ROW_SIZE = 4
 
@@ -50,23 +48,23 @@ def _manifest_process_copy(name, destination, attrs, source, default_user, defau
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
-    unix_perms = '-'
+    unix_perms = "-"
     user = default_user
     group = default_group
-    for decl in attrs.split(';'):
-        (attr, _, value) = decl.partition('=')
+    for decl in attrs.split(";"):
+        (attr, _, value) = decl.partition("=")
         if attr not in allowed_attrs:
             fail("{}: unknown attribute {}".format(name, attr))
-        if attr == 'section':
+        if attr == "section":
             section = value
-        elif attr == 'unix':
+        elif attr == "unix":
             unix_perms = value
-        elif attr == 'user':
+        elif attr == "user":
             user = value
-        elif attr == 'group':
+        elif attr == "group":
             group = group
 
-    if destination.endswith('/'):
+    if destination.endswith("/"):
         prefix = destination
         renames = {}
     else:
@@ -76,7 +74,7 @@ def _manifest_process_copy(name, destination, attrs, source, default_user, defau
     pkg_filegroup(
         name = name,
         srcs = [source],
-        attrs = {"unix" : [unix_perms, user, group]},
+        attrs = {"unix": [unix_perms, user, group]},
         section = section,
         renames = renames,
         prefix = prefix,
@@ -87,26 +85,26 @@ def _manifest_process_mkdir(name, destination, attrs, source, default_user, defa
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
-    unix_perms = '-'
+    unix_perms = "-"
     user = default_user
     group = default_group
-    for decl in attrs.split(';'):
-        (attr, _, value) = decl.partition('=')
+    for decl in attrs.split(";"):
+        (attr, _, value) = decl.partition("=")
         if attr not in allowed_attrs:
             fail("{}: unknown attribute {}".format(name, attr))
-        if attr == 'section':
+        if attr == "section":
             section = value
-        elif attr == 'unix':
+        elif attr == "unix":
             unix_perms = value
-        elif attr == 'user':
+        elif attr == "user":
             user = value
-        elif attr == 'group':
+        elif attr == "group":
             group = group
 
     pkg_mkdirs(
         name = name,
         dirs = [destination],
-        attrs = {"unix" : [unix_perms, user, group]},
+        attrs = {"unix": [unix_perms, user, group]},
         section = section,
         **kwargs
     )
@@ -115,33 +113,33 @@ def _manifest_process_symlink(name, destination, attrs, source, default_user, de
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
-    unix_perms = '0777'
+    unix_perms = "0777"
     user = default_user
     group = default_group
 
-    if attrs != '-':
-        for decl in attrs.split(';'):
-            (attr, _, value) = decl.partition('=')
+    if attrs != "-":
+        for decl in attrs.split(";"):
+            (attr, _, value) = decl.partition("=")
             if attr not in allowed_attrs:
                 fail("{}: unknown attribute {}".format(name, attr))
-            if attr == 'section':
+            if attr == "section":
                 section = value
-            elif attr == 'unix':
+            elif attr == "unix":
                 unix_perms = value
-            elif attr == 'user':
+            elif attr == "user":
                 user = value
-            elif attr == 'group':
+            elif attr == "group":
                 group = group
 
     pkg_mklinks(
         name = name,
-        links = {destination : source},
-        attrs = {"unix" : [unix_perms, user, group]},
+        links = {destination: source},
+        attrs = {"unix": [unix_perms, user, group]},
         section = section,
         **kwargs
     )
 
-def pkg_process_manifest(name, manifest, default_user='-', default_group='-',  **kwargs):
+def pkg_process_manifest(name, manifest, default_user = "-", default_group = "-", **kwargs):
     """
     Process a "manifest" of package specifications into packaging rules.
 
@@ -214,7 +212,9 @@ def pkg_process_manifest(name, manifest, default_user='-', default_group='-',  *
     for idx, desc in enumerate(manifest):
         if len(desc) != _MANIFEST_ROW_SIZE:
             fail("Package description index {} malformed (size {}, must be {})".format(
-                idx, len(desc), _MANIFEST_ROW_SIZE,
+                idx,
+                len(desc),
+                _MANIFEST_ROW_SIZE,
             ))
 
         (action, destination, attrs, source) = desc
@@ -228,10 +228,11 @@ def pkg_process_manifest(name, manifest, default_user='-', default_group='-',  *
             _manifest_process_symlink(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
         else:
             fail("Package description index {} malformed (unknown action {})".format(
-                idx, action
+                idx,
+                action,
             ))
 
-        rules.append(':{}'.format(rule_name))
+        rules.append(":{}".format(rule_name))
 
     # TODO: making this return something like a pkg_filegroup requires some sort
     # of "aggregator" rule.  The original pkg_filegroup framework was not
