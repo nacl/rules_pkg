@@ -83,7 +83,6 @@ def _manifest_process_copy(name, destination, attrs, source, default_user, defau
         **kwargs
     )
 
-
 def _manifest_process_mkdir(name, destination, attrs, source, default_user, default_group, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
@@ -143,6 +142,73 @@ def _manifest_process_symlink(name, destination, attrs, source, default_user, de
     )
 
 def pkg_process_manifest(name, manifest, default_user='-', default_group='-',  **kwargs):
+    """
+    Process a "manifest" of package specifications into packaging rules.
+
+    The "manifest" format is a list of tuples that looks like this:
+
+    ```
+    (action, destination, attributes, source)
+    ```
+
+    Each element is a string.
+
+    Where:
+
+    - `action` is one of:
+      - "copy", for a simple install-to-destination action, corresponding to `pkg_filegroup`
+      - "mkdir", for a directory creation action, corresponding to `pkg_mkdirs`
+      - "symlink", for a symlink creation action, corresponding to `pkg_mklinks`
+
+    - `destination` typically refers to the destination path within the package.
+
+    - `attributes` refers to various properties and permissions on the  destination targets.
+
+      Common attributes include:
+
+      - "unix": UNIX-style filesystem permissions as four-digit octal (e.g. "0644")
+
+      - "user": Filesystem owning user, as known to your target platform
+
+      - "group: Filesystem owning group, as known to your target platform
+
+      - "section": Package installation property, see each individual action for
+                   details.
+
+    For `copy` actions:
+
+    - `destination`: the location within the package where files are installed.
+      If `destination` ends in "/", the `source` is installed to this path as
+      the prefix, otherwise, it is renamed to the destination.
+
+      If `destination` refers to a target with more than one output, only the
+      "/" option is allowed.
+
+    - `attributes`: see "Common attributes", above.  "section" corresponds to the
+      "section" attribute of `pkg_filegroup`.
+
+    - `source`: to a label that specifies the value to be installed.
+
+    For "mkdir" actions:
+
+    - `destination` refers to the path within the package where the directory is created.
+
+    - `attributes: see "Common attributes", above.  "section" corresponds to the
+      "section" attribute of `pkg_mkdirs`.``
+
+    - `source` is ignored.
+
+    For "symlink" actions:
+
+    - `destination`: the name of the symbolic link in the target package
+
+    - `attributes: see "Common attributes", above.  "section" corresponds to the
+      "section" attribute of `pkg_mklinks`.
+
+    - `source` refers to the "target" of the symbolic link in question.  It may
+      exist outside of the defined package.
+
+    """
     rules = []
 
     for idx, desc in enumerate(manifest):
@@ -154,13 +220,13 @@ def pkg_process_manifest(name, manifest, default_user='-', default_group='-',  *
         (action, destination, attrs, source) = desc
 
         rule_name = "{}_manifest_elem_{}".format(name, idx)
-        if action == "copy": 
+        if action == "copy":
             _manifest_process_copy(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
         elif action == "mkdir":
             _manifest_process_mkdir(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
         elif action == "symlink":
             _manifest_process_symlink(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
-        else: 
+        else:
             fail("Package description index {} malformed (unknown action {})".format(
                 idx, action
             ))
