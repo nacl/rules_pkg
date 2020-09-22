@@ -12,32 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(":manifest.bzl", "pkg_process_manifest")
-load("//experimental:rpm.bzl", "pkg_rpm")
-
-manifest = [
-    # buildifier: leave alone
-    # action    dest                            attributes...           source
-    ("copy",    "/usr/bin/",                    "unix=0755",                "hello"),
-    ("copy",    "/usr/bin/hello2",              "unix=0700",                "hello"),
-    ("mkdir",   "/dir",                         "unix=0755",                "IGNORED"),
-    ("mkdir",   "/dir/child",                   "unix=0755",                "IGNORED"),
-    ("mkdir",   "/dir/child/other-child",       "unix=0755;section=docdir", "IGNORED"),
-    ("symlink", "/dir/child/some-symlink-dest", "-",                        "/usr/bin/symlink-source"),
-]
-
-arr = pkg_process_manifest(
-    name = "manifest",
-    manifest = manifest,
-)
-
-pkg_rpm(
-    name = "pkg",
-    architecture = "noarch",
-    data = arr,
-    description = "Test package",
-    license = "N/A",
-    release = "1",
-    summary = "Test package",
-    version = "1.0",
-)
+exports_files(glob(["*.bzl"]))
