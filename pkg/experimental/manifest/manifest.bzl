@@ -13,12 +13,12 @@
 # limitations under the License.
 
 """This module provides an alternate way to specify package contents using a
-csv-like "manifest" description.
+simple csv-like description specification.
 
-This will allow a highly succinct descriptions of package contents in many
+This allows for a highly succinct descriptions of package contents in many
 common cases.
 
-The following cases are NOT supported by this scheme:
+The following cases are known NOT to be supported by this scheme:
 
 - Exclusion of any files from a source target with multiple files.
 - Renaming of any files from a source target with multiple files.
@@ -44,13 +44,13 @@ load("//experimental:pkg_filegroup.bzl", "pkg_filegroup", "pkg_mkdirs", "pkg_mkl
 
 _MANIFEST_ROW_SIZE = 4
 
-def _manifest_process_copy(name, destination, attrs, source, default_user, default_group, **kwargs):
+def _manifest_process_copy(name, destination, attrs, source, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
     unix_perms = "-"
-    user = default_user
-    group = default_group
+    user = "-"
+    group = "-"
     for decl in attrs.split(";"):
         (attr, _, value) = decl.partition("=")
         if attr not in allowed_attrs:
@@ -81,13 +81,13 @@ def _manifest_process_copy(name, destination, attrs, source, default_user, defau
         **kwargs
     )
 
-def _manifest_process_mkdir(name, destination, attrs, source, default_user, default_group, **kwargs):
+def _manifest_process_mkdir(name, destination, attrs, source, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
     unix_perms = "-"
-    user = default_user
-    group = default_group
+    user = "-"
+    group = "-"
     for decl in attrs.split(";"):
         (attr, _, value) = decl.partition("=")
         if attr not in allowed_attrs:
@@ -109,13 +109,13 @@ def _manifest_process_mkdir(name, destination, attrs, source, default_user, defa
         **kwargs
     )
 
-def _manifest_process_symlink(name, destination, attrs, source, default_user, default_group, **kwargs):
+def _manifest_process_symlink(name, destination, attrs, source, **kwargs):
     allowed_attrs = ["section", "unix", "user", "group"]
 
     section = None
     unix_perms = "0777"
-    user = default_user
-    group = default_group
+    user = "-"
+    group = "-"
 
     if attrs != "-":
         for decl in attrs.split(";"):
@@ -139,7 +139,7 @@ def _manifest_process_symlink(name, destination, attrs, source, default_user, de
         **kwargs
     )
 
-def pkg_process_manifest(name, manifest, default_user = "-", default_group = "-", **kwargs):
+def pkg_list_manifest(name, manifest, default_attrs = None, **kwargs):
     """
     Process a "manifest" of package specifications into packaging rules.
 
@@ -160,7 +160,10 @@ def pkg_process_manifest(name, manifest, default_user = "-", default_group = "-"
 
     - `destination` typically refers to the destination path within the package.
 
-    - `attributes` refers to various properties and permissions on the  destination targets.
+    - `attributes` refers to various properties and permissions on the
+       destination targets.  They are formatted as a semicolon-separated list of
+       key=value pairs, e.g. `foo=bar;baz=qux`.
+
 
       Common attributes include:
 
@@ -192,7 +195,7 @@ def pkg_process_manifest(name, manifest, default_user = "-", default_group = "-"
     - `destination` refers to the path within the package where the directory is created.
 
     - `attributes: see "Common attributes", above.  "section" corresponds to the
-      "section" attribute of `pkg_mkdirs`.``
+      "section" attribute of `pkg_mkdirs`.
 
     - `source` is ignored.
 
@@ -206,8 +209,28 @@ def pkg_process_manifest(name, manifest, default_user = "-", default_group = "-"
     - `source` refers to the "target" of the symbolic link in question.  It may
       exist outside of the defined package.
 
+    Args:
+        name: string value used to influence the output rule names
+
+        manifest: list of tuples, with the format described in the introduction of this rule
+
+        default_attrs: A dictionary of action -> attributes representing the
+          default values for each action.  Attributes must be specified as
+          though they were in a manifest.
+
+        **kwargs: Any arguments that should be passed to generated rules.
+
+    Returns:
+        A list of rules that can be passed to a `pkg_filegroup`-compatible packaging rule.
+
+        The output rules are each named after the rule "name" and the index in
+        the manifest, which can be useful for finding where precisely errors can
+        occur.
     """
+
     rules = []
+    if default_attrs == None:
+        default_attrs = {}
 
     for idx, desc in enumerate(manifest):
         if len(desc) != _MANIFEST_ROW_SIZE:
@@ -219,13 +242,16 @@ def pkg_process_manifest(name, manifest, default_user = "-", default_group = "-"
 
         (action, destination, attrs, source) = desc
 
+        if action in default_attrs and default_attrs[action] not in ["", None]:
+            attrs = default_attrs[action] + ";" + attrs
+
         rule_name = "{}_manifest_elem_{}".format(name, idx)
         if action == "copy":
-            _manifest_process_copy(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
+            _manifest_process_copy(rule_name, destination, attrs, source, **kwargs)
         elif action == "mkdir":
-            _manifest_process_mkdir(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
+            _manifest_process_mkdir(rule_name, destination, attrs, source, **kwargs)
         elif action == "symlink":
-            _manifest_process_symlink(rule_name, destination, attrs, source, default_user, default_group, **kwargs)
+            _manifest_process_symlink(rule_name, destination, attrs, source, **kwargs)
         else:
             fail("Package description index {} malformed (unknown action {})".format(
                 idx,
