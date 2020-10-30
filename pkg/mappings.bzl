@@ -28,24 +28,24 @@ here.  See `rpm.bzl` for an example that builds out RPM packages.
 """
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("//:providers.bzl", "PackageFilesInfo", "PackageFileGroupinfo", "PackageDirsInfo", "PackageSymlinksInfo")
+load("//:providers.bzl", "PackageFilesInfo", "PackageFilegroupInfo", "PackageDirsInfo", "PackageSymlinksInfo")
 
 _PKGFILEGROUP_STRIP_ALL = "."
 
 def _sp_files_only():
     return _PKGFILEGROUP_STRIP_ALL
 
-def _sp_from_pkg(path):
+def _sp_from_pkg(path = ""):
     if path.startswith("/"):
-        return from_pkg[1:]
+        return path[1:]
     else:
-        return from_pkg
+        return path
 
 def _sp_from_root(path = ""):
-    if from_root.startswith("/"):
-        return from_root
+    if path.startswith("/"):
+        return path
     else:
-        return "/" + from_root
+        return "/" + path
 
 strip_prefix = struct(
     _doc = """TODO: see make_strip_prefix""",
@@ -104,6 +104,7 @@ def _owner(file):
     # clear.
     #
     # File.owner returns a Label structure
+    print("{} ----> {}".format(file, file.owner))
     if file.owner == None:
         fail("File {} ({}) has no owner attribute; cannot continue".format(file, file.path))
     else:
@@ -226,7 +227,7 @@ pkg_files = rule(
     directory structure for your files so you do not have to unless you have
     special requirements.  Consult `pkg_mkdirs` for more details.
     """,
-    implementation = _pkg_filegroup_impl,
+    implementation = _pkg_files_impl,
     # @unsorted-dict-items
     attrs = {
         "srcs": attr.label_list(
@@ -328,54 +329,13 @@ pkg_files = rule(
     },
 )
 
-def _pkg_filegroup_impl(ctx):
-    files = []
-    dirs = []
-    links = []
-    for s in srcs:
-        # TODO: reroot
-        if PackageFilesInfo in s:
-            files.append(s[PackageFilesInfo])
-        if PackageDirsInfo in s:
-            dirs.append(s[PackageDirsInfo])
-        if PackageLinksInfo in s:
-            links.append(s[PackageLinksInfo])
-    return [
-        PackageFilegroupInfo(
-            pkg_files = files,
-            pkg_dirs = dirs,
-            pkg_symlinks = pkg_links,
-        )
-    ]
-
-pkg_filegroup = rule(
-    doc = """Document me""",
-    implementation = _pkg_filegroup_impl,
-    attrs = {
-        "srcs": attr.label_list(
-            mandatory = True,
-            providers = [
-                [PackageFilesInfo],
-                [PackageDirsInfo],
-                [PackageSymlinksInfo],
-            ],
-        ),
-        "prefix": attr.string(
-
-        )
-
-    },
-)
-
 def _pkg_mkdirs_impl(ctx):
     _validate_attr(ctx.attr.attrs)
 
-    if ctx.attr.section not in ["dir", "docdir"]:
-        fail("Invalid 'section' value", "section")
     return [
-        PackageDirInfo(
+        PackageDirsInfo(
             dirs = ctx.attr.dirs,
-            attrs = ctx.attr.attrs,
+            attributes = ctx.attr.attrs,
         ),
     ]
 
@@ -435,7 +395,7 @@ def _pkg_mklinks_impl(ctx):
     return [
         PackageSymlinksInfo(
             link_map = ctx.attr.links,
-            attrs = ctx.attr.attrs,
+            attributes = ctx.attr.attrs,
         ),
     ]
 
@@ -484,27 +444,62 @@ pkg_mklinks = rule(
             """,
             default = {"unix": ["0777", "-", "-"]},
         ),
-        "section": attr.string(
-            doc = """Symlink section mapping.
+        # "section": attr.string(
+        #     doc = """Symlink section mapping.
 
-            Legal values for this attribute are:
-            - "" (i.e. an empty string)
-            - "doc"
-            - "config"
-            - "config(missingok)"
-            - "config(noreplace)"
-            - "config(missingok, noreplace)"
+        #     Legal values for this attribute are:
+        #     - "" (i.e. an empty string)
+        #     - "doc"
+        #     - "config"
+        #     - "config(missingok)"
+        #     - "config(noreplace)"
+        #     - "config(missingok, noreplace)"
 
-            See the "section" attribute of `pkg_filegroup` for more information.
-            """,
-            default = "",
-            values = [
-                "",
-                "doc",
-                "config",
-                "config(missingok)",
-                "config(noreplace)",
-                "config(missingok, noreplace)",
+        #     See the "section" attribute of `pkg_filegroup` for more information.
+        #     """,
+        #     default = "",
+        #     values = [
+        #         "",
+        #         "doc",
+        #         "config",
+        #         "config(missingok)",
+        #         "config(noreplace)",
+        #         "config(missingok, noreplace)",
+        #     ],
+        # ),
+    },
+)
+
+def _pkg_filegroup_impl(ctx):
+    files = []
+    dirs = []
+    links = []
+    for s in ctx.attr.srcs:
+        # TODO: reroot
+        if PackageFilesInfo in s:
+            files.append(s[PackageFilesInfo])
+        if PackageDirsInfo in s:
+            dirs.append(s[PackageDirsInfo])
+        if PackageSymlinksInfo in s:
+            links.append(s[PackageSymlinksInfo])
+    return [
+        PackageFilegroupInfo(
+            pkg_files = files,
+            pkg_dirs = dirs,
+            pkg_symlinks = links,
+        )
+    ]
+
+pkg_filegroup = rule(
+    doc = """Document me""",
+    implementation = _pkg_filegroup_impl,
+    attrs = {
+        "srcs": attr.label_list(
+            mandatory = True,
+            providers = [
+                [PackageFilesInfo],
+                [PackageDirsInfo],
+                [PackageSymlinksInfo],
             ],
         ),
         "prefix": attr.string(

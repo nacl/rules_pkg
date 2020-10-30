@@ -38,7 +38,13 @@ load("@bazel_stardoc//:setup.bzl", "stardoc_repositories")
 
 stardoc_repositories()
 
+# FIXME(NOW): Remove experimental
 local_repository(
     name = "experimental_test_external_repo",
     path = "experimental/tests/external_repo",
+)
+
+local_repository(
+    name = "pfg_test_external_repo",
+    path = "tests/pfg/external_repo",
 )
