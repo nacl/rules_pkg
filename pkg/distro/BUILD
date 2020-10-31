@@ -11,6 +11,11 @@ package(
     default_visibility = ["//visibility:private"],
 )
 
+alias(
+    name = "release",
+    actual = "rules_pkg-%s" % version,
+)
+
 # Build the artifact to put on the github release page.
 pkg_tar(
     name = "rules_pkg-%s" % version,
@@ -81,7 +86,6 @@ bzl_library(
         "//:path.bzl",
         "//:pkg.bzl",
         "//:providers.bzl",
-        "//:rpm.bzl",
         "//:version.bzl",
     ],
     visibility = ["//visibility:private"],
@@ -120,9 +124,3 @@ stardoc(
     deps = [":rules_pkg_lib"],
 )
 
-stardoc(
-    name = "docs_rpm",
-    out = "pkg_rpm.md",
-    input = "//:rpm.bzl",
-    deps = [":rules_pkg_lib"],
-)

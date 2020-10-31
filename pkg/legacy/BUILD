@@ -11,17 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# -*- coding: utf-8 -*-
 
-licenses(["notice"])
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@bazel_stardoc//stardoc:stardoc.bzl", "stardoc")
 
-load("//legacy:rpm.bzl", "pkg_rpm")
+exports_files(glob(["*.bzl"]))
 
-pkg_rpm(
-    name = "test-rpm",
-    data = ["//tests:archive_testdata"],
-    debug = 1,
-    release = "0",
-    spec_file = "test_rpm.spec",
-    version = "1",
+bzl_library(
+    name = "rules_pkg_lib",
+    srcs = [
+        ":rpm.bzl",
+    ],
+)
+
+stardoc(
+    name = "docs_rpm",
+    out = "pkg_rpm.md",
+    input = ":rpm.bzl",
+    deps = [":rules_pkg_lib"],
+)
+
+filegroup(
+    name = "standard_package",
+    srcs = glob(["*.bzl"]),
+    visibility = ["//:__pkg__"],
 )

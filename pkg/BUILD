@@ -18,6 +18,7 @@ filegroup(
         "BUILD",
         "LICENSE",
         "//experimental:standard_package",
+        "//legacy:standard_package",
     ],
     visibility = ["//distro:__pkg__"],
 )
@@ -87,7 +88,7 @@ py_binary(
     ],
 )
 
-# Used by pkg_rpm in rpm.bzl.
+# Used by pkg_rpm in legacy/rpm.bzl, and in experimental/rpm.bzl.
 py_binary(
     name = "make_rpm",
     srcs = ["make_rpm.py"],
