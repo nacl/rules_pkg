@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("//:mappings.bzl", "pkg_files", "strip_prefix")
+
 licenses(["notice"])
 
 exports_files(
@@ -31,4 +33,11 @@ filegroup(
         "template.spec.in",
     ],
     visibility = ["//:__pkg__"],
+)
+
+pkg_files(
+    name = "standard_pf",
+    srcs = [":standard_package"],
+    strip_prefix = strip_prefix.from_root(),
+    visibility = ["//distro:__pkg__"],
 )

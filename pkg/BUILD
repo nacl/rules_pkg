@@ -4,7 +4,7 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 licenses(["notice"])
 
 exports_files(
-    glob(["*.bzl"]),
+    glob(["*.bzl", "installer.sh.in"]),
     visibility = ["//visibility:public"],
 )
 
