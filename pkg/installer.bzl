@@ -17,7 +17,7 @@ load("@bazel_skylib//lib:shell.bzl", "shell")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
 _INSTALL_FILE_STANZA_FMT = """
-_install {0} {1} 
+_install {src} {dest} {perms} {user} {group}
 """
 def _script_for_pkg_files(pfi, default_workspace_name):
     fragments = []
@@ -30,25 +30,32 @@ def _script_for_pkg_files(pfi, default_workspace_name):
         
         fragments.append(_INSTALL_FILE_STANZA_FMT.format(
             # Runfiles are relative to each WORKSPACE used
-            shell.quote(paths.join(workspace_name, src.short_path)),
-            shell.quote(dest)
+            src=shell.quote(paths.join(workspace_name, src.short_path)),
+            dest=shell.quote(dest),
+            perms=pfi.attributes["unix"][0],
+            user=pfi.attributes["unix"][1],
+            group=pfi.attributes["unix"][2],
         ))
     return "".join(fragments)
 
 _INSTALL_DIR_STANZA_FMT = """
-_mkdir {0}
+_mkdir {dir} {perms} {user} {group}
 """
-
 def _script_for_pkg_mkdirs(pdi):
     fragments = []
     for d in pdi.dirs:
-        fragments.append(_INSTALL_DIR_STANZA_FMT.format(shell.quote(d)))
+        fragments.append(_INSTALL_DIR_STANZA_FMT.format(
+            dir = shell.quote(d),
+            perms=pdi.attributes["unix"][0],
+            user=pdi.attributes["unix"][1],
+            group=pdi.attributes["unix"][2],
+        ))
     return "".join(fragments)
+
 
 _INSTALL_LINK_STANZA_FMT = """
 _mklink {0} {1}
 """
-
 def _script_for_pkg_mklinks(psi):
     fragments = []
     for dest, src in psi.links:

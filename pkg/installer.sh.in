@@ -1,6 +1,4 @@
-#!/bin/bash -x
-
-find .
+#!/bin/bash
 
 # --- begin runfiles.bash initialization v2 ---
 # Copy-pasted from the Bazel Bash runfiles library v2.
@@ -17,26 +15,66 @@ INSTALL=${INSTALL:-/usr/bin/install}
 CP=${CP:-/usr/bin/cp}
 LN=${LN:-/usr/bin/ln}
 
-DESTDIR=${DESTDIR:-.}
+DESTDIR=${DESTDIR:-}
 
 set -e
 
 function _install() {
     src=$(rlocation $1)
     dest=$2
+    perms=$3
+    user=$4
+    group=$5
 
     $INSTALL -d $DESTDIR/$(dirname $dest)
     $CP -r $src $DESTDIR/$dest
+
+    chown_string=''
+    if [[ $user != '-' && $UID -eq 0 ]]; then
+        chown_string+=$user
+    fi
+    if [[ $group != '-' ]]; then
+        chown_string+=":$group"
+    fi
+
+    # FIXME: these should be made atomic (i.e., use install(1)) above.  That
+    # _might_ mean we need a separate command for handling installation of
+    # directory targets.
+    if [[ $perms != '-' ]]; then
+        find $DESTDIR/$dest -type f -exec chmod $perms {} +
+    fi
+    if [[ -n $chown_string ]]; then
+        find $DESTDIR/$dest -type f -exec chown $chown_string {} +
+    fi
 }
 
 function _mkdir() {
     dir=$1
-    $INSTALL -d $dir
+    perms=$2
+    user=$3
+    group=$4
+
+    install_args=()
+    if [[ $perms != '-' ]]; then
+        install_args+=(-m $perms)
+    fi
+    if [[ $user != '-' && $UID -eq 0 ]]; then
+        install_args+=(-u $user)
+    fi
+    if [[ $group != '-' ]]; then
+        install_args+=(-g $group)
+    fi
+
+    $INSTALL "${install_args[@]}" -d $DESTDIR/$dir
 }
 
 function _mklink() {
+    # TODO: handle attributes
     target=$1
     link_name=$2
+    perms=$3
+    user=$4
+    group=$5
 
     $INSTALL -d $DESTDIR/$(dirname $link_name)
     $LN -s $target $link_name

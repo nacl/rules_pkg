@@ -19,7 +19,7 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_stardoc//stardoc:stardoc.bzl", "stardoc")
 load("@rules_python//python:defs.bzl", "py_test")
 load("//:installer.bzl", "pkg_installer")
-load("//:mappings.bzl", "pkg_files", "pkg_filegroup")
+load("//:mappings.bzl", "pkg_files", "pkg_filegroup", "pkg_mkdirs")
 
 licenses(["notice"])
 
@@ -154,18 +154,30 @@ stardoc(
 
 # Basic package assembly
 pkg_files(
+    name = "pkged_workspace",
+    srcs = [":small_workspace"],
+    attrs = {"unix": ("0644", "-", "-")}
+)
+
+pkg_files(
     name = "all_files",
     srcs = [
-        ":small_workspace",
+        #":small_workspace",
         #"//:standard_package",
         #"//releasing:standard_package",
     ],
     attrs = {"unix": ("-", "-", "-")},
 )
 
+pkg_mkdirs(
+    name = "test_dir",
+    dirs = ["foofoo/barbar"],
+    attrs = {"unix": ("0700", "-", "-")}
+)
+
 pkg_filegroup(
     name = "core_pkg",
-    srcs = [":all_files", "//experimental:standard_pf"],
+    srcs = [":pkged_workspace", "//experimental:standard_pf", ":test_dir"],
 )
 
 pkg_installer(
