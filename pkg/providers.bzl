@@ -58,12 +58,11 @@ PackageDirsInfo = provider(
     },
 )
 
-PackageSymlinkInfo = provider(
+PackageSymlinksInfo = provider(
     doc = """Provider representing the creation of a single symbolic link in a package""",
     fields = {
         "attributes": """dict of string -> string list: Attributes to apply to created symlink""",
-        "destination": """string: Filesystem link 'name'""",
-        "source": """string or Label: Filesystem link 'target'""",
+        "link_map": """dict of string -> string: destination -> src""",
     },
 )
 
@@ -73,7 +72,7 @@ PackageFilegroupInfo = provider(
     doc = """Provider representing a collection of related packaging providers""",
     fields = {
         "pkg_files": "list of child PackageFilesInfo providers",
-        "pkg_dirs": "list of child PackageDirInfo providers",
-        "pkg_symlinks": "list of child PackageSymlinkInfo providers",
+        "pkg_dirs": "list of child PackageDirsInfo providers",
+        "pkg_symlinks": "list of child PackageSymlinksInfo providers",
     },
 )
