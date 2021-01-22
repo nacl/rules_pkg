@@ -1,4 +1,4 @@
-# Copyright 2019-2020 The Bazel Authors. All rights reserved.
+# Copyright 2019 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,16 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# NOTE: This is different from make_rpm.py in pkg/, and is specific to the
-# `pkg_rpm` rule in this directory.
-
 """Provides rules for creating RPM packages via pkg_filegroup and friends."""
 
-load("//experimental:pkg_filegroup.bzl", "PackageDirInfo", "PackageFileInfo", "PackageSymlinkInfo")
+load("//:providers.bzl", "PackageFilegroupInfo")
 
 rpm_filetype = [".rpm"]
 
 spec_filetype = [".spec", ".spec.in"]
+
+# TODO(nacl): __install, __cp
+# {0} is the source, {1} is the dest
+#
+# TODO(nacl, #292): cp -r does not do the right thing with TreeArtifacts
+_INSTALL_FILE_STANZA_FMT = """
+install -d %{{buildroot}}/$(dirname {1})
+cp -r {0} %{{buildroot}}/{1}
+"""
+
+# TODO(nacl): __install
+# {0} is the directory name
+#
+# This may not be strictly necessary, given that they'll be created in the
+# CPIO when rpmbuild processes the `%files` list.
+_INSTALL_DIR_STANZA_FMT = """
+install -d %{{buildroot}}/{0}
+"""
+
+# {0} is the name of the link, {1} is the target
+_INSTALL_SYMLINK_STANZA_FMT = """
+%{{__install}} -d %{{buildroot}}/$(dirname {0})
+%{{__ln_s}} {1} %{{buildroot}}/{0}
+"""
 
 def _pkg_rpm_impl(ctx):
     """Implements the pkg_rpm rule."""
@@ -211,14 +232,9 @@ def _pkg_rpm_impl(ctx):
     # sane, but the output may also create hard-to-debug issues.  Better to err
     # on the side of correctness here.
     dest_check_map = {}
-    for d in ctx.attr.data:
+    for dep in ctx.attr.data:
         # TODO(nacl, #191): This loop should be consolidated with the install
         # script-generating loop below, as they're iterating on the same data.
-
-        # d is a Target
-
-        # FIXME: if/when we start to consider other providers here, we may want
-        # to create a subroutine to consolidate these loops.
 
         # NOTE: This does not detect cases where directories are not named
         # consistently.  For example, all of these may collide in reality, but
@@ -234,50 +250,53 @@ def _pkg_rpm_impl(ctx):
         # There is also an unsolved question of determining how to handle
         # subdirectories of "PackageFileInfo" targets that are actually
         # directories.
-        if PackageFileInfo in d:
-            pfi = d[PackageFileInfo]
-            for dest in pfi.dests:
-                if dest in dest_check_map:
-                    fail(
-                        "Destination '{0}' is provided by both {1} and {2}; please ensure each destination is provided by exactly one incoming rule".format(
-                            dest,
-                            dest_check_map[dest],
-                            d.label,
-                        ),
-                        "data",
-                    )
-                else:
-                    dest_check_map[dest] = d.label
 
-        if PackageDirInfo in d:
-            pdi = d[PackageDirInfo]
-            for dest in pdi.dirs:
+        # d is a Target
+        pfg_info = dep[PackageFilegroupInfo]
+        for entry in pfg_info.pkg_files:
+            for dest, src in entry.dest_src_map.items():
                 if dest in dest_check_map:
                     fail(
                         "Destination '{0}' is provided by both {1} and {2}; please ensure each destination is provided by exactly one incoming rule".format(
                             dest,
                             dest_check_map[dest],
-                            d.label,
+                            "TODO" # d.label,
                         ),
                         "data",
                     )
                 else:
-                    dest_check_map[dest] = d.label
+                    # dest_check_map[dest] = d.label
+                    dest_check_map[dest] = True
 
-        if PackageSymlinkInfo in d:
-            psi = d[PackageSymlinkInfo]
-            for dest in psi.link_map.keys():
-                if dest in dest_check_map:
+        for entry in pfg_info.pkg_dirs:
+            for d in entry.dirs:
+                if d in dest_check_map:
                     fail(
                         "Destination '{0}' is provided by both {1} and {2}; please ensure each destination is provided by exactly one incoming rule".format(
                             dest,
                             dest_check_map[dest],
-                            d.label,
+                            "TODO" # d.label,
                         ),
                         "data",
                     )
                 else:
-                    dest_check_map[dest] = d.label
+                    # dest_check_map[dest] = d.label
+                    dest_check_map[d] = True
+            
+        # if PackageSymlinkInfo in d:
+        #     psi = d[PackageSymlinkInfo]
+        #     for dest in psi.link_map.keys():
+        #         if dest in dest_check_map:
+        #             fail(
+        #                 "Destination '{0}' is provided by both {1} and {2}; please ensure each destination is provided by exactly one incoming rule".format(
+        #                     dest,
+        #                     dest_check_map[dest],
+        #                     d.label,
+        #                 ),
+        #                 "data",
+        #             )
+        #         else:
+        #             dest_check_map[dest] = d.label
 
     #### Procedurally-generated scripts/lists (%install, %files)
 
@@ -285,28 +304,6 @@ def _pkg_rpm_impl(ctx):
     install_script_pieces = []
     if ctx.attr.debug:
         install_script_pieces.append("set -x")
-
-    # TODO(nacl): __install, __cp
-    # {0} is the source, {1} is the dest
-    install_file_stanza_fmt = """
-install -d %{{buildroot}}/$(dirname {1})
-cp -r {0} %{{buildroot}}/{1}
-    """
-
-    # TODO(nacl): __install
-    # {0} is the directory name
-    #
-    # This may not be strictly necessary, given that they'll be created in the
-    # CPIO when rpmbuild processes the `%files` list.
-    install_dir_stanza_fmt = """
-install -d %{{buildroot}}/{0}
-    """
-
-    # {0} is the name of the link, {1} is the target
-    install_symlink_stanza_fmt = """
-%{{__install}} -d %{{buildroot}}/$(dirname {0})
-%{{__ln_s}} {1} %{{buildroot}}/{0}
-"""
 
     # Build up the RPM files list (%files -f)
     rpm_files_list = []
@@ -318,45 +315,47 @@ install -d %{{buildroot}}/{0}
     # produce an installation script that is longer than necessary.  A better
     # implementation would track directories that are created and ensure that
     # they aren't unnecessarily recreated.
-    for elem in ctx.attr.data:
-        if PackageFileInfo in elem:
-            pfi = elem[PackageFileInfo]
+    for dep in ctx.attr.data:
+        pfg_info = dep[PackageFilegroupInfo]
+        for entry in pfg_info.pkg_files:
             file_base = "%attr({}) {}".format(
-                ", ".join(pfi.attrs["unix"]),
-                "%" + pfi.section if pfi.section else "",
+                ", ".join(entry.attributes["unix"]),
+                " ",
+                # TODO: alternative for "section"
+                #"%" + pfi.section if pfi.section else "",
             )
-            for (source, dest) in zip(pfi.srcs, pfi.dests):
+            for dest, src in entry.dest_src_map.items():
                 rpm_files_list.append(file_base + " /" + dest)
 
-                install_script_pieces.append(install_file_stanza_fmt.format(
-                    source.path,
+                install_script_pieces.append(_INSTALL_FILE_STANZA_FMT.format(
+                    src.path,
                     dest,
                 ))
-        if PackageDirInfo in elem:
-            pdi = elem[PackageDirInfo]
+        for entry in pfg_info.pkg_dirs:
             file_base = "%attr({}) {}".format(
-                ", ".join(pdi.attrs["unix"]),
-                "%" + pdi.section if pdi.section else "",
+                ", ".join(entry.attributes["unix"]),
+                # TODO: alternative for "section"
+                #"%" + pdi.section if pdi.section else "",
             )
-            for d in pdi.dirs:
+            for d in entry.dirs:
                 rpm_files_list.append(file_base + " /" + d)
 
-                install_script_pieces.append(install_dir_stanza_fmt.format(
+                install_script_pieces.append(_INSTALL_DIR_STANZA_FMT.format(
                     d,
-                ))
-        if PackageSymlinkInfo in elem:
-            psi = elem[PackageSymlinkInfo]
-            file_base = "%attr({}) {}".format(
-                ", ".join(psi.attrs["unix"]),
-                "%" + psi.section if psi.section else "",
-            )
-            for link_name, target in psi.link_map.items():
-                rpm_files_list.append(file_base + " /" + link_name)
+            ))
+            # if PackageSymlinkInfo in elem:
+            #     psi = elem[PackageSymlinkInfo]
+            #     file_base = "%attr({}) {}".format(
+            #         ", ".join(psi.attributes["unix"]),
+            #         "%" + psi.section if psi.section else "",
+            #     )
+            #     for link_name, target in psi.link_map.items():
+            #         rpm_files_list.append(file_base + " /" + link_name)
 
-                install_script_pieces.append(install_symlink_stanza_fmt.format(
-                    link_name,
-                    target,
-                ))
+            #         install_script_pieces.append(install_symlink_stanza_fmt.format(
+            #             link_name,
+            #             target,
+            #         ))
 
     install_script = ctx.actions.declare_file("{}.spec.install".format(rpm_name))
     ctx.actions.write(
@@ -444,25 +443,7 @@ pkg_rpm = rule(
     The uses the outputs of the rules in `pkg_filegroup.bzl` to construct arbitrary RPM
     packages.  Attributes of this rule provide preamble information and
     scriptlets, which are then used to compose a valid RPM spec file.
-
-    The meat is in the `data` attribute, which is handled like so:
-
-    - `pkg_filegroup`s provide mappings of targets to output files:
-
-      - They are copied to their destination after their destination directory
-        is created.
-
-      - No directory ownership is implied; they will typically be owned by
-        `root.root` and given permissions associated with `root`'s `umask`,
-        typically 0755, unless otherwise overidden.
-
-      - File permissions are set in the `%files` manifest.  `%config` or other
-        `%files` properties are propagated from the `section` attribute.
-
-    - `pkg_mkdirs` provide directories and directory ownership. They are
-      created in the package tree directly.  They are owned as specified by the
-      `section` attribute, which typically is the same as `%dir`.
-
+    
     This rule will fail at analysis time if:
 
     - Any `data` input may create the same destination, regardless of other
@@ -589,9 +570,7 @@ pkg_rpm = rule(
             """,
             mandatory = True,
             providers = [
-                [PackageFileInfo],
-                [PackageDirInfo],
-                [PackageSymlinkInfo],
+                [PackageFilegroupInfo],
             ],
         ),
         "debug": attr.bool(
@@ -714,7 +693,7 @@ pkg_rpm = rule(
             In most cases, you should not need to override this attribute.
             """,
             allow_single_file = spec_filetype,
-            default = "//experimental:template.spec.in",
+            default = "//new:template.spec.in",
         ),
         "binary_payload_compression": attr.string(
             doc = """Compression mode used for this RPM
