@@ -13,53 +13,62 @@
 # limitations under the License.
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_pkg//experimental:pkg_filegroup.bzl", "pkg_filegroup", "pkg_mkdirs", "pkg_mklinks")
-load("@rules_pkg//experimental:rpm.bzl", "pkg_rpm")
+load("@rules_pkg//:mappings.bzl", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "pkg_mklinks")
+load("@rules_pkg//new:rpm.bzl", "pkg_rpm")
 load("@rules_python//python:defs.bzl", "py_test")
 
 licenses(["notice"])
 
 filegroup(
     name = "ars",
-    srcs = glob(["testdata/*.ar"]),
+    srcs = [
+        "//tests:testdata/a_ab.ar",
+        "//tests:testdata/a.ar",
+        "//tests:testdata/a_b_ab.ar",
+        "//tests:testdata/a_b.ar",
+        "//tests:testdata/ab.ar",
+        "//tests:testdata/b.ar",
+        "//tests:testdata/empty.ar",
+    ],
 )
 
 ############################################################################
 # pkg_filegroups for testing
 ############################################################################
 
-pkg_filegroup(
-    name = "ars_pfg",
+pkg_files(
+    name = "ars_pf",
     srcs = [
         ":ars",
     ],
-    attrs = {"unix": [
-        "0755",
-        "root",
-        "root",
-    ]},
+    attrs = {"unix": ("0755", "root", "root")},
     prefix = "/test",
 )
 
 pkg_mkdirs(
     name = "var_log_foo",
-    attrs = {"unix": [
-        "0755",
-        "root",
-        "root",
-    ]},
+    attrs = {"unix": ("0755", "root", "root")},
     dirs = ["/var/log/foo"],
 )
 
-pkg_mklinks(
-    name = "test_links",
-    attrs = {"unix": [
-        "0777",
-        "root",
-        "root",
-    ]},
-    links = {"/usr/bin/link-name": "/usr/bin/link-target"},
+pkg_filegroup(
+    name = "test_pfg",
+    srcs = [
+        ":ars_pf",
+        #":test_links",
+        ":var_log_foo",
+    ],
 )
+
+# pkg_mklinks(
+#     name = "test_links",
+#     attrs = {"unix": [
+#         "0777",
+#         "root",
+#         "root",
+#     ]},
+#     links = {"/usr/bin/link-name": "/usr/bin/link-target"},
+# )
 
 ############################################################################
 # Test RPMs
@@ -70,9 +79,7 @@ pkg_rpm(
     architecture = "noarch",
     conflicts = ["not-a-test"],
     data = [
-        ":ars_pfg",
-        ":test_links",
-        ":var_log_foo",
+        ":test_pfg",
     ],
     description = """pkg_rpm test rpm description""",
     license = "Apache 2.0",
@@ -96,9 +103,7 @@ pkg_rpm(
     binary_payload_compression = "w2.bzdio",
     conflicts = ["not-a-test"],
     data = [
-        ":ars_pfg",
-        ":test_links",
-        ":var_log_foo",
+        ":test_pfg",
     ],
     description = """pkg_rpm test rpm description""",
     license = "Apache 2.0",
@@ -149,11 +154,11 @@ genrule(
     ) >> $@
 
     # Symlink (has no hash)
-    (
-        echo -n /usr/bin/link-name,
-        # No hash (beginning), or fflags (second-to-last)
-        echo ,root,root,120777,,/usr/bin/link-target
-    ) >> $@
+    # (
+    #     echo -n /usr/bin/link-name,
+    #     # No hash (beginning), or fflags (second-to-last)
+    #     echo ,root,root,120777,,/usr/bin/link-target
+    # ) >> $@
     """,
 )
 
@@ -232,9 +237,7 @@ pkg_rpm(
     testonly = True,
     architecture = "noarch",
     data = [
-        ":ars_pfg",
-        ":test_links",
-        ":var_log_foo",
+        ":test_pfg"
     ],
     description = """pkg_rpm test rpm description""",
     license = "Apache 2.0",
