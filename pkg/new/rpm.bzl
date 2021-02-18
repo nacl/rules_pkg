@@ -44,6 +44,26 @@ _INSTALL_SYMLINK_STANZA_FMT = """
 %{{__ln_s}} {1} %{{buildroot}}/{0}
 """
 
+def _package_contents_metadata(origin_label, grouping_label):
+    """Named construct for helping to identify duplicate packaged contents"""
+    return struct(
+        origin = origin_label if origin_label else "<UNKNOWN>",
+        group = grouping_label
+    )
+
+def _duplicate_contents_error(destination, from1, from2, attr_name = "srcs"):
+    message = """Destination {destination} is provided by both (1) {from1.origin} and (2) {from2.origin}; please sensure that each destination is provided by exactly one rule.
+
+    (1) {from1.origin} is provided from group {from1.group}
+    (2) {from2.origin} is provided from group {from2.group}
+    """.format(
+        destination = destination,
+        from1 = from1,
+        from2 = from2,
+    )
+
+    fail(message, attr_name)
+
 def _make_filetags(attributes, default_filetag = None):
     """Helper function for rendering RPM spec file tags, like
 
@@ -275,35 +295,23 @@ def _pkg_rpm_impl(ctx):
 
         # d is a Target
         pfg_info = dep[PackageFilegroupInfo]
-        for entry in pfg_info.pkg_files:
+        for entry, origin in pfg_info.pkg_files:
             for dest, src in entry.dest_src_map.items():
+                metadata = _package_contents_metadata(origin, dep.label)
                 if dest in dest_check_map:
-                    fail(
-                        "Destination '{0}' is provided by both {1} and {2}; please ensure each destination is provided by exactly one incoming rule".format(
-                            dest,
-                            dest_check_map[dest],
-                            "TODO" # d.label,
-                        ),
-                        "srcs",
-                    )
+                    _duplicate_contents_error(dest, metadata, dest_check_map[dest])
                 else:
-                    # dest_check_map[dest] = d.label
-                    dest_check_map[dest] = True
+                    dest_check_map[dest] = metadata
 
-        for entry in pfg_info.pkg_dirs:
-            for d in entry.dirs:
-                if d in dest_check_map:
-                    fail(
-                        "Destination '{0}' is provided by both {1} and {2}; please ensure each destination is provided by exactly one incoming rule".format(
-                            dest,
-                            dest_check_map[dest],
-                            "TODO" # d.label,
-                        ),
-                        "srcs",
-                    )
+        for entry, origin in pfg_info.pkg_dirs:
+            for dest in entry.dirs:
+                metadata = _package_contents_metadata(origin, dep.label)
+                if dest in dest_check_map:
+                    _duplicate_contents_error(dest, metadata, dest_check_map[dest])
                 else:
-                    # dest_check_map[dest] = d.label
-                    dest_check_map[d] = True
+                    dest_check_map[dest] = metadata
+
+        #for entry, origin in pfg_info.pkg_symlinks:
             
         # if PackageSymlinkInfo in d:
         #     psi = d[PackageSymlinkInfo]
@@ -339,7 +347,7 @@ def _pkg_rpm_impl(ctx):
     # they aren't unnecessarily recreated.
     for dep in ctx.attr.srcs:
         pfg_info = dep[PackageFilegroupInfo]
-        for entry in pfg_info.pkg_files:
+        for entry, _ in pfg_info.pkg_files:
             file_base = _make_filetags(entry.attributes)
 
             for dest, src in entry.dest_src_map.items():
@@ -349,7 +357,7 @@ def _pkg_rpm_impl(ctx):
                     src.path,
                     dest,
                 ))
-        for entry in pfg_info.pkg_dirs:
+        for entry, _ in pfg_info.pkg_dirs:
             file_base = _make_filetags(entry.attributes, "%dir")
             for d in entry.dirs:
                 rpm_files_list.append(file_base + " /" + d)
@@ -357,7 +365,7 @@ def _pkg_rpm_impl(ctx):
                 install_script_pieces.append(_INSTALL_DIR_STANZA_FMT.format(
                     d,
             ))
-        for entry in pfg_info.pkg_symlinks:
+        for entry, _ in pfg_info.pkg_symlinks:
             file_base = _make_filetags(entry.attributes)
             rpm_files_list.append(file_base + " /" + entry.destination)
             install_script_pieces.append(_INSTALL_SYMLINK_STANZA_FMT.format(
