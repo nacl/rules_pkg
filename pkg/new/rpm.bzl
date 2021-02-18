@@ -320,9 +320,7 @@ def _pkg_rpm_impl(ctx):
         for entry in pfg_info.pkg_files:
             file_base = "%attr({}) {}".format(
                 ", ".join(entry.attributes["unix"]),
-                " ",
-                # TODO: alternative for "section"
-                #"%" + pfi.section if pfi.section else "",
+                "%" + entry.attributes["rpm_filetag"][0] if "rpm_filetag" in entry.attributes else ""
             )
             for dest, src in entry.dest_src_map.items():
                 rpm_files_list.append(file_base + " /" + dest)
@@ -334,8 +332,9 @@ def _pkg_rpm_impl(ctx):
         for entry in pfg_info.pkg_dirs:
             file_base = "%attr({}) {}".format(
                 ", ".join(entry.attributes["unix"]),
-                # TODO: alternative for "section"
-                #"%" + pdi.section if pdi.section else "",
+                # Must always be "%dir" by default, else RPM won't treat this
+                # like a directory.
+                "%" + entry.attributes["rpm_filetag"] if "rpm_filetag" in entry.attributes else "%dir"
             )
             for d in entry.dirs:
                 rpm_files_list.append(file_base + " /" + d)
@@ -463,6 +462,16 @@ pkg_rpm = rule(
     - `rpmbuild` (as specified in `rpmbuild_path`, or available in `$PATH`)
 
     - GNU coreutils.  BSD coreutils may work, but are not tested.
+    
+    To set RPM file attributes (like `%config` and friends), set the
+    `rpm_filetag` in corresponding packaging rule (`pkg_files`, etc).  The value
+    is prepended with "%" and added to the file list, for example:
+
+    ```
+    attrs = {"rpm_filetag": ("config(missingok, noreplace)",)},
+    ```
+    
+    Is the equivalent to `%config(missingok, noreplace)` in the `%files` list.
 
     """,
     # @unsorted-dict-items
