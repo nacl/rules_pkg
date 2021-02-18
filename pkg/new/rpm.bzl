@@ -246,7 +246,7 @@ def _pkg_rpm_impl(ctx):
         files.append(ctx.file.changelog)
         args.append(ctx.file.changelog.path)
 
-    files += ctx.files.data
+    files += ctx.files.srcs
 
     #### Sanity checking
 
@@ -254,7 +254,7 @@ def _pkg_rpm_impl(ctx):
     # sane, but the output may also create hard-to-debug issues.  Better to err
     # on the side of correctness here.
     dest_check_map = {}
-    for dep in ctx.attr.data:
+    for dep in ctx.attr.srcs:
         # TODO(nacl, #191): This loop should be consolidated with the install
         # script-generating loop below, as they're iterating on the same data.
 
@@ -284,7 +284,7 @@ def _pkg_rpm_impl(ctx):
                             dest_check_map[dest],
                             "TODO" # d.label,
                         ),
-                        "data",
+                        "srcs",
                     )
                 else:
                     # dest_check_map[dest] = d.label
@@ -299,7 +299,7 @@ def _pkg_rpm_impl(ctx):
                             dest_check_map[dest],
                             "TODO" # d.label,
                         ),
-                        "data",
+                        "srcs",
                     )
                 else:
                     # dest_check_map[dest] = d.label
@@ -315,7 +315,7 @@ def _pkg_rpm_impl(ctx):
         #                     dest_check_map[dest],
         #                     d.label,
         #                 ),
-        #                 "data",
+        #                 "srcs",
         #             )
         #         else:
         #             dest_check_map[dest] = d.label
@@ -337,7 +337,7 @@ def _pkg_rpm_impl(ctx):
     # produce an installation script that is longer than necessary.  A better
     # implementation would track directories that are created and ensure that
     # they aren't unnecessarily recreated.
-    for dep in ctx.attr.data:
+    for dep in ctx.attr.srcs:
         pfg_info = dep[PackageFilegroupInfo]
         for entry in pfg_info.pkg_files:
             file_base = _make_filetags(entry.attributes)
@@ -392,7 +392,7 @@ def _pkg_rpm_impl(ctx):
 
     args.extend(["--rpmbuild_arg=" + a for a in additional_rpmbuild_args])
 
-    for f in ctx.files.data:
+    for f in ctx.files.srcs:
         args.append(f.path)
 
     #### Call the generator script.
@@ -581,7 +581,7 @@ pkg_rpm = rule(
         "changelog": attr.label(
             allow_single_file = True,
         ),
-        "data": attr.label_list(
+        "srcs": attr.label_list(
             doc = """Mappings to include in this RPM.
 
             These are typically brought into life as `pkg_filegroup`s.
