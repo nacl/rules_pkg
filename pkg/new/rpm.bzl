@@ -44,6 +44,28 @@ _INSTALL_SYMLINK_STANZA_FMT = """
 %{{__ln_s}} {1} %{{buildroot}}/{0}
 """
 
+def _make_filetags(attributes, default_filetag = None):
+    """Helper function for rendering RPM spec file tags, like
+
+    ```
+    %attr(0755, root, root) %dir
+    ```
+    """
+    template = "%attr({mode}, {user}, {group}) {supplied_filetag}"
+
+    mode = attributes.get("mode", "-")
+    user = attributes.get("user", "-")
+    group = attributes.get("group", "-")
+
+    supplied_filetag = attributes.get("rpm_filetag", default_filetag)
+
+    return template.format(
+        mode = mode,
+        user = user,
+        group = group,
+        supplied_filetag = supplied_filetag or ""
+    )
+    
 def _pkg_rpm_impl(ctx):
     """Implements the pkg_rpm rule."""
 
@@ -318,10 +340,8 @@ def _pkg_rpm_impl(ctx):
     for dep in ctx.attr.data:
         pfg_info = dep[PackageFilegroupInfo]
         for entry in pfg_info.pkg_files:
-            file_base = "%attr({}) {}".format(
-                ", ".join(entry.attributes["unix"]),
-                "%" + entry.attributes["rpm_filetag"][0] if "rpm_filetag" in entry.attributes else ""
-            )
+            file_base = _make_filetags(entry.attributes)
+
             for dest, src in entry.dest_src_map.items():
                 rpm_files_list.append(file_base + " /" + dest)
 
@@ -330,12 +350,7 @@ def _pkg_rpm_impl(ctx):
                     dest,
                 ))
         for entry in pfg_info.pkg_dirs:
-            file_base = "%attr({}) {}".format(
-                ", ".join(entry.attributes["unix"]),
-                # Must always be "%dir" by default, else RPM won't treat this
-                # like a directory.
-                "%" + entry.attributes["rpm_filetag"] if "rpm_filetag" in entry.attributes else "%dir"
-            )
+            file_base = _make_filetags(entry.attributes, "%dir")
             for d in entry.dirs:
                 rpm_files_list.append(file_base + " /" + d)
 
