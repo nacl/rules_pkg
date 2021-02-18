@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_pkg//:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "pkg_mklinks")
+load("@rules_pkg//:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "pkg_mklink")
 load("@rules_pkg//new:rpm.bzl", "pkg_rpm")
 load("@rules_python//python:defs.bzl", "py_test")
 
@@ -76,25 +76,26 @@ pkg_mkdirs(
     dirs = ["/var/log/foo"],
 )
 
+pkg_mklink(
+    name = "test_links",
+    attributes = pkg_attributes(
+        mode = "0777",
+        user = "root",
+        group = "root",
+    ),
+    dest = "/usr/bin/link-name",
+    src = "/usr/bin/link-target",
+)
+
 pkg_filegroup(
     name = "test_pfg",
     srcs = [
         ":ars_pf",
         ":config_file",
-        #":test_links",
+        ":test_links",
         ":var_log_foo",
     ],
 )
-
-# pkg_mklinks(
-#     name = "test_links",
-#     attrs = {"unix": [
-#         "0777",
-#         "root",
-#         "root",
-#     ]},
-#     links = {"/usr/bin/link-name": "/usr/bin/link-target"},
-# )
 
 ############################################################################
 # Test RPMs
@@ -193,11 +194,11 @@ genrule(
     ) >> $@
 
     # Symlink (has no hash)
-    # (
-    #     echo -n /usr/bin/link-name,
-    #     # No hash (beginning), or fflags (second-to-last)
-    #     echo ,root,root,120777,,/usr/bin/link-target
-    # ) >> $@
+    (
+        echo -n /usr/bin/link-name,
+        # No hash (beginning), or fflags (second-to-last)
+        echo ,root,root,120777,,/usr/bin/link-target
+    ) >> $@
     """,
 )
 
