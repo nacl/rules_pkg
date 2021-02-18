@@ -357,19 +357,13 @@ def _pkg_rpm_impl(ctx):
                 install_script_pieces.append(_INSTALL_DIR_STANZA_FMT.format(
                     d,
             ))
-            # if PackageSymlinkInfo in elem:
-            #     psi = elem[PackageSymlinkInfo]
-            #     file_base = "%attr({}) {}".format(
-            #         ", ".join(psi.attributes["unix"]),
-            #         "%" + psi.section if psi.section else "",
-            #     )
-            #     for link_name, target in psi.link_map.items():
-            #         rpm_files_list.append(file_base + " /" + link_name)
-
-            #         install_script_pieces.append(install_symlink_stanza_fmt.format(
-            #             link_name,
-            #             target,
-            #         ))
+        for entry in pfg_info.pkg_symlinks:
+            file_base = _make_filetags(entry.attributes)
+            rpm_files_list.append(file_base + " /" + entry.destination)
+            install_script_pieces.append(_INSTALL_SYMLINK_STANZA_FMT.format(
+                entry.destination,
+                entry.source
+            ))
 
     install_script = ctx.actions.declare_file("{}.spec.install".format(rpm_name))
     ctx.actions.write(
