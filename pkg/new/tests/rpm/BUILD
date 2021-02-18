@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_pkg//:mappings.bzl", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "pkg_mklinks")
+load("@rules_pkg//:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "pkg_mklinks")
 load("@rules_pkg//new:rpm.bzl", "pkg_rpm")
 load("@rules_python//python:defs.bzl", "py_test")
 
@@ -22,10 +22,10 @@ licenses(["notice"])
 filegroup(
     name = "ars",
     srcs = [
-        "//tests:testdata/a_ab.ar",
         "//tests:testdata/a.ar",
-        "//tests:testdata/a_b_ab.ar",
+        "//tests:testdata/a_ab.ar",
         "//tests:testdata/a_b.ar",
+        "//tests:testdata/a_b_ab.ar",
         "//tests:testdata/ab.ar",
         "//tests:testdata/b.ar",
         "//tests:testdata/empty.ar",
@@ -41,7 +41,11 @@ pkg_files(
     srcs = [
         ":ars",
     ],
-    attrs = {"unix": ("0755", "root", "root")},
+    attributes = pkg_attributes(
+        mode = "0755",
+        user = "root",
+        group = "root",
+    ),
     prefix = "/test",
 )
 
@@ -54,15 +58,21 @@ genrule(
 pkg_files(
     name = "config_file",
     srcs = [":config_empty"],
-    attrs = {
-        "unix": ("0644", "root", "root"),
-        "rpm_filetag": ("config(missingok, noreplace)",),
-    },
+    attributes = pkg_attributes(
+        group = "root",
+        mode = "0644",
+        rpm_filetag = "%config(missingok, noreplace)",
+        user = "root",
+    ),
 )
 
 pkg_mkdirs(
     name = "var_log_foo",
-    attrs = {"unix": ("0755", "root", "root")},
+    attributes = pkg_attributes(
+        mode = "0755",
+        user = "root",
+        group = "root",
+    ),
     dirs = ["/var/log/foo"],
 )
 
@@ -143,7 +153,10 @@ pkg_rpm(
 # Emit a CSV file providing a manifest providing the expected RPM contents
 genrule(
     name = "test_rpm_manifest",
-    srcs = [":ars", ":config_file"],
+    srcs = [
+        ":ars",
+        ":config_file",
+    ],
     outs = ["manifest.csv"],
     # Keep the header (the first line echo'd below) in sync with
     # rpm_queryformat_fieldnames in pkg_rpm_basic_test.py
@@ -265,7 +278,7 @@ pkg_rpm(
     testonly = True,
     architecture = "noarch",
     data = [
-        ":test_pfg"
+        ":test_pfg",
     ],
     description = """pkg_rpm test rpm description""",
     license = "Apache 2.0",
