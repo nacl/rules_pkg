@@ -105,7 +105,7 @@ pkg_rpm(
     name = "test_rpm",
     architecture = "noarch",
     conflicts = ["not-a-test"],
-    data = [
+    srcs = [
         ":test_pfg",
     ],
     description = """pkg_rpm test rpm description""",
@@ -129,7 +129,7 @@ pkg_rpm(
     architecture = "noarch",
     binary_payload_compression = "w2.bzdio",
     conflicts = ["not-a-test"],
-    data = [
+    srcs = [
         ":test_pfg",
     ],
     description = """pkg_rpm test rpm description""",
@@ -249,7 +249,7 @@ genrule(
 sh_library(
     name = "pkg_rpm_basic_test_data",
     testonly = True,
-    data = [
+    srcs = [
         ":test_rpm",
         ":test_rpm-bzip2",
         ":test_rpm_manifest",
@@ -278,7 +278,7 @@ pkg_rpm(
     name = "test_rpm_default_template",
     testonly = True,
     architecture = "noarch",
-    data = [
+    srcs = [
         ":test_pfg",
     ],
     description = """pkg_rpm test rpm description""",
