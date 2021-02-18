@@ -45,6 +45,21 @@ pkg_files(
     prefix = "/test",
 )
 
+genrule(
+    name = "config_empty",
+    outs = ["config.txt"],
+    cmd = "touch $@",
+)
+
+pkg_files(
+    name = "config_file",
+    srcs = [":config_empty"],
+    attrs = {
+        "unix": ("0644", "root", "root"),
+        "rpm_filetag": ("config(missingok, noreplace)",),
+    },
+)
+
 pkg_mkdirs(
     name = "var_log_foo",
     attrs = {"unix": ("0755", "root", "root")},
@@ -55,6 +70,7 @@ pkg_filegroup(
     name = "test_pfg",
     srcs = [
         ":ars_pf",
+        ":config_file",
         #":test_links",
         ":var_log_foo",
     ],
@@ -127,7 +143,7 @@ pkg_rpm(
 # Emit a CSV file providing a manifest providing the expected RPM contents
 genrule(
     name = "test_rpm_manifest",
-    srcs = [":ars"],
+    srcs = [":ars", ":config_file"],
     outs = ["manifest.csv"],
     # Keep the header (the first line echo'd below) in sync with
     # rpm_queryformat_fieldnames in pkg_rpm_basic_test.py
@@ -144,7 +160,17 @@ genrule(
             # Symlink destination (not provided)
             echo ,
         ) >> $@
-
+    done
+    # Config file
+    for f in $(location :config_file); do
+        (
+            echo -n /$$(basename $$f),
+            md5sum $$f | cut -d' ' -f1 | tr '\\n' ,
+            # User,Group,Mode,Fflags (fflags "cmn" = config + missingok + noreplace)
+            echo -n 'root,root,100644,cmn'
+            # Symlink destination (not provided)
+            echo ,
+        ) >> $@
     done
     # Directory (has no hash)
     (
@@ -185,6 +211,7 @@ genrule(
 
         echo 'capability:sense'
         echo 'test:manual'
+        echo 'config(test_rpm) = 1.1.1-2222:config'
     ) > $(RULEDIR)/provides.csv
     (
         # NOTE: excludes 'rpmlib' requires that may be version-dependent
@@ -198,6 +225,7 @@ genrule(
         echo 'bash:preun'
         # Hand-specified
         echo 'test-lib > 1.0:manual'
+        echo 'config(test_rpm) = 1.1.1-2222:config'
     ) > $(RULEDIR)/requires.csv
     """,
 )
