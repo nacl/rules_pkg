@@ -74,10 +74,15 @@ PackageSymlinkInfo = provider(
 # Grouping provider: the only one that needs to be consumed by packaging (or
 # other) rules that materialize paths.
 PackageFilegroupInfo = provider(
-    doc = """Provider representing a collection of related packaging providers""",
+    doc = """Provider representing a collection of related packaging providers,
+    
+    In the "fields" documentation, "origin" refers to the label identifying the
+    where the provider was originally defined.
+
+""",
     fields = {
-        "pkg_files": "list of child PackageFilesInfo providers",
-        "pkg_dirs": "list of child PackageDirsInfo providers",
-        "pkg_symlinks": "list of child PackageSymlinkInfo providers",
+        "pkg_files": "list of tuples of (PackageFilesInfo, origin)",
+        "pkg_dirs": "list of tuples of (PackageDirsInfo, origin)",
+        "pkg_symlinks": "list of tuples of (PackageSymlinkInfo, origin)",
     },
 )
