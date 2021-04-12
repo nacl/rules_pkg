@@ -22,7 +22,7 @@ def _inspect_directory_script_impl(ctx):
         template = ctx.file._inspector_template,
         output = script,
         substitutions = {
-            "%EXPECTED_STRUCTURE%": str(ctx.attr.expected_structure),
+            "%EXPECTED_STRUCTURE%": json.encode(ctx.attr.expected_structure),
             "%DIRECTORY_ROOT%": ctx.file.directory.short_path,
         },
     )

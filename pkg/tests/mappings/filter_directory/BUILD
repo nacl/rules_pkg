@@ -16,9 +16,31 @@
 
 load(":defs.bzl", "inspect_directory_test")
 load("//tests/util:defs.bzl", "directory")
+load("//:mappings.bzl", "filter_directory")
 
 inspect_directory_test(
-    name = "basic_af",
+    name = "renames",
+    directory = ":renames_in",
+    expected_structure = [
+        "test/b",
+        "test/c",
+        "a",
+        "d",
+    ],
+)
+
+filter_directory(
+    name = "renames_in",
+    src = ":test_directory",
+    renames = {
+        "test/a": "a",
+        "c": "test/c",
+    },
+)
+
+
+inspect_directory_test(
+    name = "base",
     directory = ":test_directory",
     expected_structure = [
         "test/a",

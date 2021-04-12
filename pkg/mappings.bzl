@@ -611,3 +611,50 @@ pkg_filegroup = rule(
     },
     provides = [PackageFilegroupInfo],
 )
+
+def _filter_directory_impl(ctx):
+    out_dir = ctx.actions.declare_directory(ctx.attr.outdir_name or ctx.attr.name)
+
+    if not ctx.file.src.is_directory:
+        fail("Must be a directory (TreeArtifact)", "src")
+
+    args = ctx.actions.args()
+
+    # Adding the directories directly here requires manually specifying the
+    # path.  Bazel will reject simply passing in the File object.
+    args.add(ctx.file.src.path)
+    args.add(out_dir.path)
+    args.add("TODO: something more interesting")
+
+    ctx.actions.run(
+        executable = ctx.executable._filterer,
+        use_default_shell_env = True,
+        arguments = [args],
+        inputs = [ctx.file.src],
+        outputs = [out_dir],
+    )
+
+    return [DefaultInfo(files = depset([out_dir]))]
+
+filter_directory = rule(
+    doc = """Document me""",
+    implementation = _filter_directory_impl,
+    attrs = {
+        "src": attr.label(allow_single_file = True),
+        "outdir_name": attr.string(),
+        "strip_prefix": attr.string(),
+        "excludes": attr.string_list(),
+        "renames": attr.string_dict(),
+        "_filterer": attr.label(
+            default = "//:filter_directory",
+            executable = True,
+            cfg = "exec",
+        ),
+    },
+    # executable = False,
+    # cfg = None,
+    # fragments = [],
+    # host_fragments = [],
+    # toolchains = [],
+    # build_setting = None,
+)

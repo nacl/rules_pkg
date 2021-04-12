@@ -14,13 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import glob
+import json
 import os
 import unittest
 from rules_python.python.runfiles import runfiles
 
 DIRECTORY_ROOT = "%DIRECTORY_ROOT%"
-EXPECTED_STRUCTURE = %EXPECTED_STRUCTURE%
+EXPECTED_STRUCTURE = """%EXPECTED_STRUCTURE%"""
 
 
 class DirectoryStructureTest(unittest.TestCase):
@@ -28,19 +28,32 @@ class DirectoryStructureTest(unittest.TestCase):
         self.runfiles = runfiles.Create()
 
     def test_directory_structure_matches_global(self):
-        #print("PROVIDED " + DIRECTORY_ROOT)
+        real_directory_root = self.runfiles.Rlocation(
+            os.path.join(os.environ["TEST_WORKSPACE"], DIRECTORY_ROOT)
+        )
 
-        #print("EXPECTED " "rules_pkg/tests/mappings/filter_directory/")
-        #print(EXPECTED_STRUCTURE)
-        real_directory_root = self.runfiles.Rlocation(os.path.join(os.environ["TEST_WORKSPACE"], DIRECTORY_ROOT))
+        # This may be a bazel bug -- shouldn't an empty directory be passed in
+        # anyway?
+        self.assertTrue(os.path.isdir(real_directory_root), "TreeArtifact root  does not exist, is the input empty?")
 
-        print("cwd", os.getcwd())
-        print("glob start")
-        for p in glob.glob(os.path.join(real_directory_root, "**"), recursive=True):
-            print(p)
-            print(os.path.relpath(p, real_directory_root))
-            
-        print("glob end")
+        expected_set = set(json.loads(EXPECTED_STRUCTURE))
+        actual_set = set()
+        for root, dirs, files in os.walk(real_directory_root):
+            print("root:", root)
+            if root != real_directory_root:
+                rel_root = os.path.relpath(root, real_directory_root)
+            else:
+                # We are in the root.  Don't bother with path relativization.
+                rel_root = ''
+            for f in files:
+                actual_set.add(os.path.join(rel_root, f))
+
+        self.assertEqual(
+            expected_set,
+            actual_set,
+            "Directory structure mismatch"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
