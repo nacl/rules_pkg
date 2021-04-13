@@ -106,7 +106,6 @@ def main(argv):
                 # Skip it
                 continue
 
-            print("src file:", rel_src_path)
             if rel_src_path in renames_map:
                 # Calculate a new path based on the individual renames.  Include
                 # the prefix too.
@@ -120,8 +119,6 @@ def main(argv):
                 dest = dest_dir / f
             file_mappings[root_path / f] = dest
 
-    # print (renames_map)
-
     ###########################################################################
     # Check for early failure
     ###########################################################################
@@ -131,7 +128,6 @@ def main(argv):
         return not used
 
     unused_exclusions = dict(filter(value_unused, excludes_used_map.items()))
-    # TODO-NOW do something with this
     unused_renames = dict(filter(value_unused, renames_used_map.items()))
 
     # If there are any unused exclusions or renames, fail now.
@@ -166,9 +162,9 @@ def main(argv):
     ###########################################################################
 
     for src, dest in file_mappings.items():
-        #print("MKDIR", dest.parent)
-        dest.parent.mkdir(exist_ok=True)
-        #print("CP", src, "->", dest)
+        print("MKDIR", dest.parent, file=sys.stderr)
+        dest.parent.mkdir(exist_ok=True, parents=True)
+        print("CP", src, "->", dest, file=sys.stderr)
         shutil.copy(
             src,
             dest,

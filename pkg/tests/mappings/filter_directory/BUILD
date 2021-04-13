@@ -16,6 +16,9 @@ load(":defs.bzl", "inspect_directory_test")
 load("//tests/util:defs.bzl", "directory")
 load("//:mappings.bzl", "filter_directory")
 
+# TODO-NOW: negative tests:
+# Invalid arguments for prefix, strip_prefix, rename, exclude
+
 ############################################################################
 # Base case
 ############################################################################
