@@ -624,7 +624,6 @@ def _filter_directory_impl(ctx):
     # path.  Bazel will reject simply passing in the File object.
     args.add(ctx.file.src.path)
     args.add(out_dir.path)
-    args.add("TODO: something more interesting")
 
     ctx.actions.run(
         executable = ctx.executable._filterer,
@@ -642,19 +641,16 @@ filter_directory = rule(
     attrs = {
         "src": attr.label(allow_single_file = True),
         "outdir_name": attr.string(),
+
         "strip_prefix": attr.string(),
-        "excludes": attr.string_list(),
+        "prefix": attr.string(),
         "renames": attr.string_dict(),
+        "excludes": attr.string_list(),
+
         "_filterer": attr.label(
             default = "//:filter_directory",
             executable = True,
             cfg = "exec",
         ),
     },
-    # executable = False,
-    # cfg = None,
-    # fragments = [],
-    # host_fragments = [],
-    # toolchains = [],
-    # build_setting = None,
 )

@@ -34,7 +34,7 @@ class DirectoryStructureTest(unittest.TestCase):
 
         # This may be a bazel bug -- shouldn't an empty directory be passed in
         # anyway?
-        self.assertTrue(os.path.isdir(real_directory_root), "TreeArtifact root  does not exist, is the input empty?")
+        self.assertTrue(os.path.isdir(real_directory_root), "TreeArtifact root does not exist, is the input empty?")
 
         expected_set = set(json.loads(EXPECTED_STRUCTURE))
         actual_set = set()
