@@ -620,10 +620,15 @@ def _filter_directory_impl(ctx):
 
     args = ctx.actions.args()
 
+    # Flags
+    #if ctx.attr.excludes:
+    args.add_all(ctx.attr.excludes, before_each="--exclude")
+
     # Adding the directories directly here requires manually specifying the
     # path.  Bazel will reject simply passing in the File object.
     args.add(ctx.file.src.path)
     args.add(out_dir.path)
+
 
     ctx.actions.run(
         executable = ctx.executable._filterer,
@@ -636,7 +641,15 @@ def _filter_directory_impl(ctx):
     return [DefaultInfo(files = depset([out_dir]))]
 
 filter_directory = rule(
-    doc = """Document me""",
+    doc = """
+
+    Order of operations:
+    
+    - Files are `exclude`d
+    - `strip_prefix` is applied
+    - `renames` is applied, overriding `strip_prefix`
+    - `prefix` is applied
+    """,
     implementation = _filter_directory_impl,
     attrs = {
         "src": attr.label(allow_single_file = True),
