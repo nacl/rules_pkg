@@ -124,7 +124,7 @@ inspect_directory_test(
     name = "combo_all",
     directory = ":combo_all_in",
     expected_structure = [
-        "subdir/a",
+        "root/subdir/not_a",
         "c",
     ],
 )
@@ -133,7 +133,7 @@ filter_directory(
     name = "combo_all_in",
     src = ":test_directory_same_root",
     excludes = ["root/subdir/b", "root/d"],
-    strip_prefix = "test/",
+    strip_prefix = "root/",
     renames = {"root/subdir/a": "root/subdir/not_a"}
 )
 

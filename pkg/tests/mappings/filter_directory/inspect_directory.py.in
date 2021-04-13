@@ -39,7 +39,6 @@ class DirectoryStructureTest(unittest.TestCase):
         expected_set = set(json.loads(EXPECTED_STRUCTURE))
         actual_set = set()
         for root, dirs, files in os.walk(real_directory_root):
-            print("root:", root)
             if root != real_directory_root:
                 rel_root = os.path.relpath(root, real_directory_root)
             else:
