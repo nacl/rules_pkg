@@ -612,6 +612,9 @@ pkg_filegroup = rule(
     provides = [PackageFilegroupInfo],
 )
 
+def _filter_directory_argify_pair(pair):
+    return "{}={}".format(*pair)
+
 def _filter_directory_impl(ctx):
     out_dir = ctx.actions.declare_directory(ctx.attr.outdir_name or ctx.attr.name)
 
@@ -623,8 +626,8 @@ def _filter_directory_impl(ctx):
     # Flags
     #if ctx.attr.excludes:
     args.add_all(ctx.attr.excludes, before_each="--exclude")
+    args.add_all(ctx.attr.renames.items(), before_each="--rename", map_each=_filter_directory_argify_pair)
 
-    #if ctx.attr.prefix:
     args.add("--prefix", ctx.attr.prefix)
     args.add("--strip-prefix", ctx.attr.strip_prefix)
 

@@ -1,21 +1,40 @@
 #!/usr/bin/env python3
 
+# Copyright 2021 The Bazel Authors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import os
 import pathlib
 import shutil
 import sys
 
+
 def main(argv):
+    ###########################################################################
+    # Arg parsing
+    ###########################################################################
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--strip-prefix", type=pathlib.Path, default=None,
                         help="directory prefix to strip from all incoming paths")
     parser.add_argument("--prefix", type=pathlib.Path, default=None,
                         help="prefix to add to all output paths")
-    parser.add_argument("--rename", type=str, action='append',
+    parser.add_argument("--rename", type=str, action='append', default=[],
                         help="SOURCE=DESTINATION mappings.  Only supports files.")
     parser.add_argument("--exclude", type=pathlib.Path, action='append',
+                        default=[],
                         help="Input files to exclude from the output directory")
 
     parser.add_argument("input_dir", type=pathlib.Path,
@@ -29,15 +48,31 @@ def main(argv):
     dir_out = args.output_dir
 
     # TODO: various consistency checks, including:
-    # - prefix must be relative and must be normalized (not contain any "..")
-    # - strip_prefix must be relative
+    # - prefix must be relative and normalized (not contain any "..")
+    # - strip_prefix must be relative and normalized
+    # - renamed artifacts must not collide with each other and their paths must be normalized
 
+    excludes_used_map = {e: False for e in args.exclude}
 
-    excludes_map = {} if args.exclude is None else {e: False for e in args.exclude}
-    renames_map = {} # TODO-NOW
+    renames_map = dict(
+        [
+            (
+                pathlib.Path(p)
+                for p in r.split('=', maxsplit=1)
+            )
+            for r in args.rename
+        ]
+    )
+
+    renames_used_map = {src: False for src in renames_map.keys()}
+    strip_prefix_dirs_invalid = []
+
     file_mappings = {}
 
-    strip_prefix_dirs_invalid = []
+    ###########################################################################
+    # Assemble src -> dest map (file_mappings)
+    ###########################################################################
+
     for root, dirs, files in os.walk(dir_in):
         root_path = pathlib.Path(root)
 
@@ -50,27 +85,42 @@ def main(argv):
 
         # strip_prefix must apply to everything to reduce overall surprise.  If
         # this root contains files and is not under strip_prefix, quit now.
+        #
+        # This can probably be refined somewhat -- for example, if we descend
+        # into a child directory, we don't need to mention it.
         dest_rel_root = rel_root
         if len(files) != 0 and args.strip_prefix is not None:
             try:
                 dest_rel_root = rel_root.relative_to(args.strip_prefix)
-                print("STRIP_PREFIX dest_rel_root", dest_rel_root)
             except ValueError:
                 # Cannot proceed -- strip_prefix does not apply here.  Store
-                # "invalid" directories in the right location,
+                # "invalid" directories in an output list, and then continue.
                 strip_prefix_dirs_invalid.append(rel_root)
 
         dest_dir /= dest_rel_root
 
         for f in files:
             rel_src_path = rel_root / f
-            if rel_src_path in excludes_map:
-                excludes_map[rel_src_path] = True
+            if rel_src_path in excludes_used_map:
+                excludes_used_map[rel_src_path] = True
                 # Skip it
                 continue
 
-            dest = dest_dir / f
+            print("src file:", rel_src_path)
+            if rel_src_path in renames_map:
+                # Calculate a new path based on the individual renames.  Include
+                # the prefix too.
+                dest = dir_out
+                if args.prefix:
+                    dest /= args.prefix
+                dest /= renames_map[rel_src_path]
+                renames_used_map[rel_src_path] = True
+            else:
+                # Use the paths we already calculated
+                dest = dest_dir / f
             file_mappings[root_path / f] = dest
+
+    # print (renames_map)
 
     ###########################################################################
     # Check for early failure
@@ -80,13 +130,13 @@ def main(argv):
         _, used = value_tuple
         return not used
 
-    unused_exclusions = dict(filter(value_unused, excludes_map.items()))
+    unused_exclusions = dict(filter(value_unused, excludes_used_map.items()))
     # TODO-NOW do something with this
-    unused_renames = {}
+    unused_renames = dict(filter(value_unused, renames_used_map.items()))
 
     # If there are any unused exclusions or renames, fail now.
     #
-    # Empty dictionaries are "falsy"
+    # Empty iterables below are "falsy"
     fail_early = any([
         strip_prefix_dirs_invalid,
         unused_exclusions,
@@ -98,15 +148,16 @@ def main(argv):
         if strip_prefix_dirs_invalid:
             print("    strip_prefix does not apply to directories")
             for d in strip_prefix_dirs_invalid:
-                print("       " + str(d))
+                print("       {}".format(d))
         if unused_exclusions:
             print("    Unused exclusions:")
             for p in unused_exclusions.keys():
-                print("       " + str(p))
+                print("       {}".format(p))
         if unused_renames:
             print("    Unused renames:")
-            for p in unused_renames.keys():
-                print("       " + str(p))
+            for src in unused_renames.keys():
+                # TODO: this could be formatted more prettily (namely, aligned)
+                print("       {} -> {}".format(src, renames_map[src]))
 
         sys.exit(1)
 
