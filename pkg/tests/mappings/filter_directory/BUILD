@@ -24,8 +24,8 @@ inspect_directory_test(
     name = "base",
     directory = ":test_directory",
     expected_structure = [
-        "test/a",
-        "test/b",
+        "subdir/a",
+        "subdir/b",
         "c",
         "d",
     ],
@@ -39,8 +39,8 @@ inspect_directory_test(
     name = "renames",
     directory = ":renames_in",
     expected_structure = [
-        "test/b",
-        "test/c",
+        "subdir/b",
+        "subdir/c",
         "a",
         "d",
     ],
@@ -50,8 +50,8 @@ filter_directory(
     name = "renames_in",
     src = ":test_directory",
     renames = {
-        "test/a": "a",
-        "c": "test/c",
+        "subdir/a": "a",
+        "c": "subdir/c",
     },
 )
 
@@ -73,7 +73,28 @@ inspect_directory_test(
 filter_directory(
     name = "strip_prefix_in",
     src = ":test_directory_same_root",
-    strip_prefix = "test/",
+    strip_prefix = "root/",
+)
+
+############################################################################
+# Prefixing
+############################################################################
+
+inspect_directory_test(
+    name = "prefix",
+    directory = ":prefix_in",
+    expected_structure = [
+        "extra/subdir/a",
+        "extra/subdir/b",
+        "extra/c",
+        "extra/d",
+    ]
+)
+
+filter_directory(
+    name = "prefix_in",
+    src = ":test_directory",
+    prefix = "extra/"
 )
 
 ############################################################################
@@ -84,7 +105,7 @@ inspect_directory_test(
     name = "exclusions",
     directory = ":exclusions_in",
     expected_structure = [
-        "test/a",
+        "subdir/a",
         "c",
     ],
 )
@@ -92,7 +113,7 @@ inspect_directory_test(
 filter_directory(
     name = "exclusions_in",
     src = ":test_directory",
-    excludes = ["test/b", "d"],
+    excludes = ["subdir/b", "d"],
 )
 
 ############################################################################
@@ -103,7 +124,7 @@ inspect_directory_test(
     name = "combo_all",
     directory = ":combo_all_in",
     expected_structure = [
-        "test/a",
+        "subdir/a",
         "c",
     ],
 )
@@ -111,9 +132,9 @@ inspect_directory_test(
 filter_directory(
     name = "combo_all_in",
     src = ":test_directory_same_root",
-    excludes = ["test/b", "d"],
+    excludes = ["root/subdir/b", "root/d"],
     strip_prefix = "test/",
-    renames = {"test/subdir/a": "test/subdir/not_a"}
+    renames = {"root/subdir/a": "root/subdir/not_a"}
 )
 
 ############################################################################
@@ -123,18 +144,18 @@ filter_directory(
 directory(
     name = "test_directory_same_root",
     filenames = [
-        "test/subdir/a",
-        "test/subdir/b",
-        "test/c",
-        "test/d",
+        "root/subdir/a",
+        "root/subdir/b",
+        "root/c",
+        "root/d",
     ]
 )
 
 directory(
     name = "test_directory",
     filenames = [
-        "test/a",
-        "test/b",
+        "subdir/a",
+        "subdir/b",
         "c",
         "d",
     ]

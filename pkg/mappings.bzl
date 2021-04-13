@@ -624,6 +624,9 @@ def _filter_directory_impl(ctx):
     #if ctx.attr.excludes:
     args.add_all(ctx.attr.excludes, before_each="--exclude")
 
+    #if ctx.attr.prefix:
+    args.add("--prefix", ctx.attr.prefix)
+
     # Adding the directories directly here requires manually specifying the
     # path.  Bazel will reject simply passing in the File object.
     args.add(ctx.file.src.path)

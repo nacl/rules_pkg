@@ -11,7 +11,7 @@ def main(argv):
 
     parser.add_argument("--strip-prefix", type=str,
                         help="directory prefix to strip from all incoming paths")
-    parser.add_argument("--prefix", type=str,
+    parser.add_argument("--prefix", type=pathlib.Path, default=None,
                         help="prefix to add to all output paths")
     parser.add_argument("--rename", type=str, action='append',
                         help="SOURCE=DESTINATION mappings.  Only supports files.")
@@ -25,10 +25,12 @@ def main(argv):
 
     args = parser.parse_args(argv)
 
-    print(args)
-
     dir_in = args.input_dir
     dir_out = args.output_dir
+
+    # TODO: various consistency checks, including:
+    # - prefix must be relative and must be normalized (not contain any "..")
+    # - strip_prefix must be relative
 
     excludes_map = {} if args.exclude is None else {e: False for e in args.exclude}
     renames_map = {} # TODO-NOW
@@ -37,7 +39,10 @@ def main(argv):
     for root, dirs, files in os.walk(dir_in):
         root_path = pathlib.Path(root)
         rel_root = root_path.relative_to(dir_in)
-        dest_dir = dir_out / rel_root
+        if args.prefix:
+            dest_dir = dir_out / args.prefix / rel_root
+        else:
+            dest_dir = dir_out / rel_root
 
         for f in files:
             rel_src_path = rel_root / f
