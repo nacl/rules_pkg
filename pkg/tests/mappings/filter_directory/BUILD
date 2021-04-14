@@ -35,7 +35,7 @@ inspect_directory_test(
 )
 
 ############################################################################
-# Remap_Paths
+# Renames
 ############################################################################
 
 inspect_directory_test(
@@ -91,13 +91,13 @@ inspect_directory_test(
         "extra/subdir/b",
         "extra/c",
         "extra/d",
-    ]
+    ],
 )
 
 filter_directory(
     name = "prefix_in",
     src = ":test_directory",
-    prefix = "extra/"
+    prefix = "extra/",
 )
 
 ############################################################################
@@ -116,7 +116,10 @@ inspect_directory_test(
 filter_directory(
     name = "exclusions_in",
     src = ":test_directory",
-    excludes = ["subdir/b", "d"],
+    excludes = [
+        "subdir/b",
+        "d",
+    ],
 )
 
 ############################################################################
@@ -127,17 +130,21 @@ inspect_directory_test(
     name = "combo_all",
     directory = ":combo_all_in",
     expected_structure = [
-        "root/subdir/not_a",
-        "c",
+        "foo/root/subdir/not_a",
+        "foo/c",
     ],
 )
 
 filter_directory(
     name = "combo_all_in",
     src = ":test_directory_same_root",
-    excludes = ["root/subdir/b", "root/d"],
+    excludes = [
+        "root/subdir/b",
+        "root/d",
+    ],
+    prefix = "foo",
+    renames = {"root/subdir/a": "root/subdir/not_a"},
     strip_prefix = "root/",
-    renames = {"root/subdir/a": "root/subdir/not_a"}
 )
 
 ############################################################################
@@ -151,7 +158,7 @@ directory(
         "root/subdir/b",
         "root/c",
         "root/d",
-    ]
+    ],
 )
 
 directory(
@@ -161,6 +168,5 @@ directory(
         "subdir/b",
         "c",
         "d",
-    ]
+    ],
 )
-

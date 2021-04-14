@@ -50,7 +50,8 @@ def main(argv):
     # TODO: various consistency checks, including:
     # - prefix must be relative and normalized (not contain any "..")
     # - strip_prefix must be relative and normalized
-    # - renamed artifacts must not collide with each other and their paths must be normalized
+    # - renamed artifacts must not collide with each other and their paths must
+    #   be normalized.
 
     excludes_used_map = {e: False for e in args.exclude}
 
@@ -107,8 +108,8 @@ def main(argv):
                 continue
 
             if rel_src_path in renames_map:
-                # Calculate a new path based on the individual renames.  Include
-                # the prefix too.
+                # Calculate a new path based on the individual renames.
+                # Include the prefix too.
                 dest = dir_out
                 if args.prefix:
                     dest /= args.prefix
@@ -162,14 +163,11 @@ def main(argv):
     ###########################################################################
 
     for src, dest in file_mappings.items():
-        print("MKDIR", dest.parent, file=sys.stderr)
         dest.parent.mkdir(exist_ok=True, parents=True)
-        print("CP", src, "->", dest, file=sys.stderr)
         shutil.copy(
             src,
             dest,
         )
-
 
 
 if __name__ == "__main__":
