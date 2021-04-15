@@ -14,10 +14,17 @@
 
 load("@rules_pkg//toolchains:rpmbuild.bzl", "rpmbuild_toolchain")
 
+sh_binary(
+    name = "rpmbuild_wrapper",
+    srcs = ["rpmbuild.sh"],
+    data = [":rpmbuild_binary"],
+)
+
 rpmbuild_toolchain(
     name = "prebuilt_rpmbuild",
-    # You could also point to a target that builds rpmbuild from source.
-    label = ":rpmbuild_binary",
+    # You could also point to a target that refers to the binary itself, or one
+    # that builds rpmbuild from source.
+    label = ":rpmbuild_wrapper",
 )
 
 toolchain(
