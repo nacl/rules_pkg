@@ -649,6 +649,7 @@ def _filter_directory_impl(ctx):
 
 filter_directory = rule(
     doc = """
+    Transform directories (TreeArtifacts) using pkg_filegroup-like semantics.
 
     Order of operations:
     
@@ -656,16 +657,55 @@ filter_directory = rule(
     - `strip_prefix` is applied
     - `renames` is applied, overriding `strip_prefix`
     - `prefix` is applied
+    
+    If an operation cannot be applied to any component in the directory, or if
+    one is unused, the underlying command will fail.
     """,
     implementation = _filter_directory_impl,
     attrs = {
-        "src": attr.label(allow_single_file = True),
-        "outdir_name": attr.string(),
+        "src": attr.label(
+            doc = """
+            Directory (TreeArtifact) to adjust
+            """,
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "outdir_name": attr.string(
+            doc = """Name of output directory (otherwise defaults to the rule's name)"""
+        ),
 
-        "strip_prefix": attr.string(),
-        "prefix": attr.string(),
-        "renames": attr.string_dict(),
-        "excludes": attr.string_list(),
+        "strip_prefix": attr.string(
+            doc = """Prefix to remove from all paths in the directory.
+
+            Must apply to all paths in the directory.
+            """
+        ),
+        "prefix": attr.string(
+            doc = """Prefix to add to all paths in the directory.
+
+            This does not include the output directory name, which must be set.
+            """
+        ),
+        "renames": attr.string_dict(
+            doc = """Files to rename in the directory
+            
+            Keys are destinations, values are sources prior to any path
+            modifications (e.g. via `prefix` or `strip_prefix`).  Files that are
+            `exclude`d must not be renamed.
+            
+            This currently only operates on individual files.
+
+            All renames must be used.
+            """,
+        ),
+        "excludes": attr.string_list(
+            doc = """Files to exclude from the directory
+            
+            Each element must refer to an invidual file in `src`.
+
+            All exclusions must be used.
+            """
+        ),
 
         "_filterer": attr.label(
             default = "//:filter_directory",
