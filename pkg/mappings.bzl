@@ -625,8 +625,8 @@ def _filter_directory_impl(ctx):
 
     # Flags
     #if ctx.attr.excludes:
-    args.add_all(ctx.attr.excludes, before_each="--exclude")
-    args.add_all(ctx.attr.renames.items(), before_each="--rename", map_each=_filter_directory_argify_pair)
+    args.add_all(ctx.attr.excludes, before_each = "--exclude")
+    args.add_all(ctx.attr.renames.items(), before_each = "--rename", map_each = _filter_directory_argify_pair)
 
     args.add("--prefix", ctx.attr.prefix)
     args.add("--strip-prefix", ctx.attr.strip_prefix)
@@ -635,7 +635,6 @@ def _filter_directory_impl(ctx):
     # path.  Bazel will reject simply passing in the File object.
     args.add(ctx.file.src.path)
     args.add(out_dir.path)
-
 
     ctx.actions.run(
         executable = ctx.executable._filterer,
@@ -663,6 +662,7 @@ filter_directory = rule(
     """,
     implementation = _filter_directory_impl,
     attrs = {
+        # @unsorted-dict-items
         "src": attr.label(
             doc = """
             Directory (TreeArtifact) to adjust
@@ -671,20 +671,19 @@ filter_directory = rule(
             mandatory = True,
         ),
         "outdir_name": attr.string(
-            doc = """Name of output directory (otherwise defaults to the rule's name)"""
+            doc = """Name of output directory (otherwise defaults to the rule's name)""",
         ),
-
         "strip_prefix": attr.string(
             doc = """Prefix to remove from all paths in the directory.
 
             Must apply to all paths in the directory.
-            """
+            """,
         ),
         "prefix": attr.string(
             doc = """Prefix to add to all paths in the directory.
 
             This does not include the output directory name, which must be set.
-            """
+            """,
         ),
         "renames": attr.string_dict(
             doc = """Files to rename in the directory
@@ -704,9 +703,8 @@ filter_directory = rule(
             Each element must refer to an invidual file in `src`.
 
             All exclusions must be used.
-            """
+            """,
         ),
-
         "_filterer": attr.label(
             default = "//:filter_directory",
             executable = True,
