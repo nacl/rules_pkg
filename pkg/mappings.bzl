@@ -657,6 +657,18 @@ filter_directory = rule(
     - `renames` is applied, overriding `strip_prefix`
     - `prefix` is applied
     
+    Each non-renamed path will look like this:
+
+    ```
+    $OUTPUT_DIR/$PREFIX/$FILE_WITHOUT_STRIP_PREFIX
+    ```
+
+    Each renamed path will look like this:
+    
+    ```
+    $OUTPUT_DIR/$PREFIX/$FILE_RENAMED
+    ```
+    
     If an operation cannot be applied to any component in the directory, or if
     one is unused, the underlying command will fail.
     """,
@@ -674,19 +686,19 @@ filter_directory = rule(
             doc = """Name of output directory (otherwise defaults to the rule's name)""",
         ),
         "strip_prefix": attr.string(
-            doc = """Prefix to remove from all paths in the directory.
+            doc = """Prefix to remove from all paths in the output directory.
 
             Must apply to all paths in the directory.
             """,
         ),
         "prefix": attr.string(
-            doc = """Prefix to add to all paths in the directory.
+            doc = """Prefix to add to all paths in the output directory.
 
             This does not include the output directory name, which must be set.
             """,
         ),
         "renames": attr.string_dict(
-            doc = """Files to rename in the directory
+            doc = """Files to rename in the output directory
             
             Keys are destinations, values are sources prior to any path
             modifications (e.g. via `prefix` or `strip_prefix`).  Files that are
@@ -698,7 +710,7 @@ filter_directory = rule(
             """,
         ),
         "excludes": attr.string_list(
-            doc = """Files to exclude from the directory
+            doc = """Files to exclude from the output directory
             
             Each element must refer to an invidual file in `src`.
 
