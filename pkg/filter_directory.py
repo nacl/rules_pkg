@@ -19,6 +19,7 @@ import os
 import pathlib
 import shutil
 import sys
+import textwrap
 
 
 def main(argv):
@@ -32,7 +33,7 @@ def main(argv):
     parser.add_argument("--prefix", type=pathlib.Path, default=None,
                         help="prefix to add to all output paths")
     parser.add_argument("--rename", type=str, action='append', default=[],
-                        help="SOURCE=DESTINATION mappings.  Only supports files.")
+                        help="DESTINATION=SRC mappings.  Only supports files.")
     parser.add_argument("--exclude", type=pathlib.Path, action='append',
                         default=[],
                         help="Input files to exclude from the output directory")
@@ -46,27 +47,54 @@ def main(argv):
 
     dir_in = args.input_dir
     dir_out = args.output_dir
+    dir_out_abs = pathlib.Path.cwd() / dir_out
 
     # TODO: various consistency checks, including:
     # - prefix must be relative and normalized (not contain any "..")
     # - strip_prefix must be relative and normalized
     # - renamed artifacts must not collide with each other and their paths must
     #   be normalized.
+    # if args.prefix is not None:
+    #     if args.prefix.is_absolute():
+    #         sys.exit("--prefix (prefix attribute) must be relative (is {})".format(args.prefix))
+    #     if str(args.prefix) != os.path.normpath(args.prefix):
+    #         sys.exit("--prefix (prefix attribute) must be normalized (is '{}', normalized is '{}')".format(
+    #             args.prefix,
+    #             os.path.normpath(args.prefix),
+    #         ))
+
+    # if args.strip_prefix is not None:
+    #     if args.strip_prefix.is_absolute():
+    #         sys.exit("--strip-prefix (strip_prefix attribute) must be relative (is {})".format(args.strip_prefix))
+    #     if str(args.strip_prefix) != os.path.normpath(args.strip_prefix):
+    #         sys.exit("--strip-prefix (strip_prefix attribute) must be normalized (is '{}', normalized is '{}')".format(
+    #             args.strip_prefix,
+    #             os.path.normpath(args.strip_prefix),
+    #         ))
 
     excludes_used_map = {e: False for e in args.exclude}
 
-    renames_map = dict(
-        [
-            (
-                pathlib.Path(p)
-                for p in r.split('=', maxsplit=1)
-            )
-            for r in args.rename
-        ]
-    )
+    renames_map = {}
+    # TODO-NOW: test this logic
+    for r in args.rename:
+        dest, src = (pathlib.Path(p) for p in r.split('=', maxsplit=1))
+        if dest not in renames_map:
+            renames_map[src] = dest
+        else:
+            sys.exit(textwrap.dedent("""Renames collision:
+                {d1} <- {s1}
+                {d2} <- {s2}
+
+            Each destination must be unique.
+            """.format(
+                d1=dest, s1=src,
+                d2=dest, s2=renames_map[dest],
+            )))
 
     renames_used_map = {src: False for src in renames_map.keys()}
-    strip_prefix_dirs_invalid = []
+    invalid_strip_prefix_dirs = []
+
+    files_installed_outside_destdir = []
 
     file_mappings = {}
 
@@ -85,7 +113,8 @@ def main(argv):
             dest_dir = dir_out
 
         # strip_prefix must apply to everything to reduce overall surprise.  If
-        # this root contains files and is not under strip_prefix, quit now.
+        # this root contains files and is not under strip_prefix, record it and
+        # fail after this preprocessing stage.
         #
         # This can probably be refined somewhat -- for example, if we descend
         # into a child directory, we don't need to mention it.
@@ -96,28 +125,44 @@ def main(argv):
             except ValueError:
                 # Cannot proceed -- strip_prefix does not apply here.  Store
                 # "invalid" directories in an output list, and then continue.
-                strip_prefix_dirs_invalid.append(rel_root)
+                invalid_strip_prefix_dirs.append(rel_root)
 
         dest_dir /= dest_rel_root
 
         for f in files:
             rel_src_path = rel_root / f
+
+            # Handle exclusions
             if rel_src_path in excludes_used_map:
                 excludes_used_map[rel_src_path] = True
                 # Skip it
                 continue
 
             if rel_src_path in renames_map:
-                # Calculate a new path based on the individual renames.
-                # Include the prefix too.
+                # Calculate a new path based on the individual renames.  Renames
+                # override "strip_prefix". Include the prefix too.
                 dest = dir_out
                 if args.prefix:
                     dest /= args.prefix
                 dest /= renames_map[rel_src_path]
                 renames_used_map[rel_src_path] = True
             else:
-                # Use the paths we already calculated
+                # Use the paths we already calculated.
                 dest = dest_dir / f
+
+            # Verify that files are not going to be installed outside the output
+            # directory, and include them in error lists if this is the case.
+
+            # We can't use pathlib here since non-strict checks are only
+            # available as of python 3.6.  Target environments may still be
+            # running earlier versions.
+            common_pfx = os.path.commonprefix([
+                os.path.abspath(str(dest)),
+                str(dir_out_abs)
+            ])
+            if common_pfx != str(dir_out_abs):
+                files_installed_outside_destdir.append(f)
+
             file_mappings[root_path / f] = dest
 
     ###########################################################################
@@ -135,16 +180,17 @@ def main(argv):
     #
     # Empty iterables below are "falsy"
     fail_early = any([
-        strip_prefix_dirs_invalid,
+        invalid_strip_prefix_dirs,
         unused_exclusions,
         unused_renames,
+        files_installed_outside_destdir,
     ])
 
     if fail_early:
         print("Refusing to continue due to:")
-        if strip_prefix_dirs_invalid:
+        if invalid_strip_prefix_dirs:
             print("    strip_prefix does not apply to directories")
-            for d in strip_prefix_dirs_invalid:
+            for d in invalid_strip_prefix_dirs:
                 print("       {}".format(d))
         if unused_exclusions:
             print("    Unused exclusions:")
@@ -155,6 +201,10 @@ def main(argv):
             for src in unused_renames.keys():
                 # TODO: this could be formatted more prettily (namely, aligned)
                 print("       {} -> {}".format(src, renames_map[src]))
+        if files_installed_outside_destdir:
+            print("    Files would be installed outside the destdir {}".format(dir_out))
+            for src in files_installed_outside_destdir:
+                print("       {}".format(src))
 
         sys.exit(1)
 

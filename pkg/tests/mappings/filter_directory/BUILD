@@ -53,8 +53,8 @@ filter_directory(
     name = "renames_in",
     src = ":test_directory",
     renames = {
-        "subdir/a": "a",
-        "c": "subdir/c",
+        "a": "subdir/a",
+        "subdir/c": "c",
     },
 )
 
@@ -143,7 +143,7 @@ filter_directory(
         "root/d",
     ],
     prefix = "foo",
-    renames = {"root/subdir/a": "root/subdir/not_a"},
+    renames = {"root/subdir/not_a": "root/subdir/a"},
     strip_prefix = "root/",
 )
 
