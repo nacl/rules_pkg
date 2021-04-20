@@ -25,10 +25,10 @@ inspect_directory_test(
     name = "base",
     directory = ":test_directory",
     expected_structure = [
-        "subdir/a",
-        "subdir/b",
-        "c",
-        "d",
+        "a",
+        "b",
+        "subdir/c",
+        "subdir/d",
     ],
 )
 
@@ -40,10 +40,10 @@ inspect_directory_test(
     name = "renames",
     directory = ":renames_in",
     expected_structure = [
-        "subdir/b",
-        "subdir/c",
-        "a",
-        "d",
+        "b",
+        "c",
+        "subdir/a",
+        "subdir/d",
     ],
 )
 
@@ -51,8 +51,8 @@ filter_directory(
     name = "renames_in",
     src = ":test_directory",
     renames = {
-        "a": "subdir/a",
-        "subdir/c": "c",
+        "subdir/a": "a",
+        "c": "subdir/c",
     },
 )
 
@@ -60,10 +60,10 @@ inspect_directory_test(
     name = "renames_loop",
     directory = ":renames_loop_in",
     expected_structure = [
-        "c",
-        "d",
-        "subdir/a",
-        "subdir/b",
+        "a",
+        "b",
+        "subdir/c",
+        "subdir/d",
     ],
 )
 
@@ -71,8 +71,8 @@ filter_directory(
     name = "renames_loop_in",
     src = ":test_directory",
     renames = {
-        "subdir/a": "c",
-        "c": "subdir/a",
+        "subdir/c": "a",
+        "a": "subdir/c",
     },
 )
 
@@ -84,10 +84,10 @@ inspect_directory_test(
     name = "strip_prefix",
     directory = ":strip_prefix_in",
     expected_structure = [
-        "subdir/a",
-        "subdir/b",
-        "c",
-        "d",
+        "a",
+        "b",
+        "subdir/c",
+        "subdir/d",
     ],
 )
 
@@ -105,11 +105,11 @@ inspect_directory_test(
     name = "prefix",
     directory = ":prefix_in",
     expected_structure = [
-        "extra/subdir/a",
-        "extra/subdir/b",
-        "extra/c",
-        "extra/d",
-    ],
+        "extra/a",
+        "extra/b",
+        "extra/subdir/c",
+        "extra/subdir/d",
+    ]
 )
 
 filter_directory(
@@ -126,8 +126,8 @@ inspect_directory_test(
     name = "exclusions",
     directory = ":exclusions_in",
     expected_structure = [
-        "subdir/a",
-        "c",
+        "a",
+        "subdir/c",
     ],
 )
 
@@ -135,8 +135,8 @@ filter_directory(
     name = "exclusions_in",
     src = ":test_directory",
     excludes = [
-        "subdir/b",
-        "d",
+        "b",
+        "subdir/d",
     ],
 )
 
@@ -148,8 +148,8 @@ inspect_directory_test(
     name = "combo_all",
     directory = ":combo_all_in",
     expected_structure = [
-        "foo/root/subdir/not_a",
-        "foo/c",
+        "foo/root/not_a",
+        "foo/subdir/c",
     ],
 )
 
@@ -157,11 +157,11 @@ filter_directory(
     name = "combo_all_in",
     src = ":test_directory_same_root",
     excludes = [
-        "root/subdir/b",
-        "root/d",
+        "root/b",
+        "root/subdir/d",
     ],
     prefix = "foo",
-    renames = {"root/subdir/not_a": "root/subdir/a"},
+    renames = {"root/not_a": "root/a"},
     strip_prefix = "root/",
 )
 
@@ -169,17 +169,17 @@ inspect_directory_test(
     name = "combo_rename_to_exclude",
     directory = ":combo_rename_to_exclude_in",
     expected_structure = [
-        "subdir/a",
-        "subdir/b",
-        "d",
+        "a",
+        "subdir/c",
+        "subdir/d",
     ],
 )
 
 filter_directory(
     name = "combo_rename_to_exclude_in",
     src = ":test_directory",
-    renames = {"d": "c"},
-    excludes = ["d"],
+    renames = {"a": "b"},
+    excludes = ["a"],
 )
 
 ############################################################################
@@ -189,20 +189,20 @@ filter_directory(
 directory(
     name = "test_directory_same_root",
     filenames = [
-        "root/subdir/a",
-        "root/subdir/b",
-        "root/c",
-        "root/d",
+        "root/a",
+        "root/b",
+        "root/subdir/c",
+        "root/subdir/d",
     ],
 )
 
 directory(
     name = "test_directory",
     filenames = [
-        "subdir/a",
-        "subdir/b",
-        "c",
-        "d",
+        "a",
+        "b",
+        "subdir/c",
+        "subdir/d",
     ],
 )
 
