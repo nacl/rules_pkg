@@ -47,14 +47,19 @@ class FilterDirectoryInternalTest(unittest.TestCase):
         self.indir.cleanup()
         self.outdir.cleanup()
 
-    def callFilterDirectory(self, prefix=None, strip_prefix=None, renames=None, exclusions=None):
+    def callFilterDirectory(self,
+                            prefix=None,        # str
+                            strip_prefix=None,  # str
+                            renames=None,       # list of tuple
+                            exclusions=None,    # list
+    ):
         args = [self.filter_directory_script]
         if prefix:
             args.append("--prefix={}".format(prefix))
         if strip_prefix:
             args.append("--strip-prefix={}".format(prefix))
         if renames:
-            args.extend(["--rename={}={}".format(dest, src) for dest, src in renames.items()])
+            args.extend(["--rename={}={}".format(dest, src) for dest, src in renames])
         if exclusions:
             args.extend(["--exclude={}".format(e) for e in exclusions])
 
@@ -95,17 +100,47 @@ class FilterDirectoryInternalTest(unittest.TestCase):
             message="--strip-prefix that does not apply everywhere should be rejected",
         )
 
-    # TODO-NOW
     def test_invalid_excludes(self):
-        pass
+        self.assertFilterDirectoryFails(
+            exclusions=["a", "foo"],
+            message="--exclude's that are unused should be rejected",
+        )
 
     def test_invalid_renames(self):
-        pass
+        # Can't rename files outside the package
+        self.assertFilterDirectoryFails(
+            renames=[("a", "../outside")],
+            message="--rename's with paths outside the destroot should be rejected",
+        )
+
+        # Can't rename files to outputs that already exist
+        self.assertFilterDirectoryFails(
+            renames=[("a", "subdir/c")],
+            message="--rename's that clobber other output files should be rejected",
+        )
+
+        # This is unreachable from the bazel rule, but it's worth double-checking.
+        #
+        # Can't rename multiple files to the same destination
+        self.assertFilterDirectoryFails(
+            renames=[("a", "subdir/c"), ("a", "subdir/d")],
+            message="Multiple --rename's to the same destination should be rejected.",
+        )
+
+        # Can't rename files twice
+        self.assertFilterDirectoryFails(
+            renames=[("bar", "a"), ("foo", "a")],
+            message="--rename's that attempt to rename the same source twice should be rejected",
+        )
 
     def test_invalid_interactions(self):
-        pass
-
-
+        # Renames are supposed to occur after exclusions, the rename here should
+        # thus be unused.
+        self.assertFilterDirectoryFails(
+            renames=[("foo", "a")],
+            exclusions=["a"],
+            message="--rename's of excluded files should be rejected",
+        )
 
 if __name__ == "__main__":
     unittest.main()

@@ -56,6 +56,26 @@ filter_directory(
     },
 )
 
+inspect_directory_test(
+    name = "renames_loop",
+    directory = ":renames_loop_in",
+    expected_structure = [
+        "c",
+        "d",
+        "subdir/a",
+        "subdir/b",
+    ],
+)
+
+filter_directory(
+    name = "renames_loop_in",
+    src = ":test_directory",
+    renames = {
+        "subdir/a": "c",
+        "c": "subdir/a",
+    },
+)
+
 ############################################################################
 # Prefix stripping
 ############################################################################
@@ -143,6 +163,23 @@ filter_directory(
     prefix = "foo",
     renames = {"root/subdir/not_a": "root/subdir/a"},
     strip_prefix = "root/",
+)
+
+inspect_directory_test(
+    name = "combo_rename_to_exclude",
+    directory = ":combo_rename_to_exclude_in",
+    expected_structure = [
+        "subdir/a",
+        "subdir/b",
+        "d",
+    ],
+)
+
+filter_directory(
+    name = "combo_rename_to_exclude_in",
+    src = ":test_directory",
+    renames = {"d": "c"},
+    excludes = ["d"],
 )
 
 ############################################################################

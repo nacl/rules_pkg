@@ -33,7 +33,8 @@ def main(argv):
     parser.add_argument("--prefix", type=pathlib.Path, default=None,
                         help="prefix to add to all output paths")
     parser.add_argument("--rename", type=str, action='append', default=[],
-                        help="DESTINATION=SRC mappings.  Only supports files.")
+                        help="DESTINATION=SOURCE mappings.  Only supports files.  "
+                             "DESTINATION=SOURCE must be one-to-one.")
     parser.add_argument("--exclude", type=pathlib.Path, action='append',
                         default=[],
                         help="Input files to exclude from the output directory")
@@ -49,47 +50,38 @@ def main(argv):
     dir_out = args.output_dir
     dir_out_abs = pathlib.Path.cwd() / dir_out
 
-    # TODO: various consistency checks, including:
-    # - prefix must be relative and normalized (not contain any "..")
-    # - strip_prefix must be relative and normalized
-    # - renamed artifacts must not collide with each other and their paths must
-    #   be normalized.
-    # if args.prefix is not None:
-    #     if args.prefix.is_absolute():
-    #         sys.exit("--prefix (prefix attribute) must be relative (is {})".format(args.prefix))
-    #     if str(args.prefix) != os.path.normpath(args.prefix):
-    #         sys.exit("--prefix (prefix attribute) must be normalized (is '{}', normalized is '{}')".format(
-    #             args.prefix,
-    #             os.path.normpath(args.prefix),
-    #         ))
-
-    # if args.strip_prefix is not None:
-    #     if args.strip_prefix.is_absolute():
-    #         sys.exit("--strip-prefix (strip_prefix attribute) must be relative (is {})".format(args.strip_prefix))
-    #     if str(args.strip_prefix) != os.path.normpath(args.strip_prefix):
-    #         sys.exit("--strip-prefix (strip_prefix attribute) must be normalized (is '{}', normalized is '{}')".format(
-    #             args.strip_prefix,
-    #             os.path.normpath(args.strip_prefix),
-    #         ))
-
     excludes_used_map = {e: False for e in args.exclude}
 
+    # src -> dest
     renames_map = {}
-    # TODO-NOW: test this logic
+    # dest -> src, used for diagnostics
+    renames_map_reversed = {}
+
     for r in args.rename:
         dest, src = (pathlib.Path(p) for p in r.split('=', maxsplit=1))
-        if dest not in renames_map:
-            renames_map[src] = dest
-        else:
-            sys.exit(textwrap.dedent("""Renames collision:
+        if src in renames_map:
+            sys.exit(textwrap.dedent("""In --renames, sources used multiple times:
+                {s1} -> {d1}
+                {s2} -> {d2}
+
+            Each destination must be unique.
+            """.format(
+                s1=src, d1=dest,
+                s2=src, d2=renames_map[src],
+            )))
+
+        if dest in renames_map_reversed:
+            sys.exit(textwrap.dedent("""--renames destination collision:
                 {d1} <- {s1}
                 {d2} <- {s2}
 
             Each destination must be unique.
             """.format(
                 d1=dest, s1=src,
-                d2=dest, s2=renames_map[dest],
+                d2=dest, s2=renames_map_reversed[dest],
             )))
+        renames_map[src] = dest
+        renames_map_reversed[dest] = src
 
     renames_used_map = {src: False for src in renames_map.keys()}
     invalid_strip_prefix_dirs = []
