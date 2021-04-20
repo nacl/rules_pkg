@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_python//python:defs.bzl", "py_test")
 load(":defs.bzl", "inspect_directory_test")
 load("//tests/util:defs.bzl", "directory")
 load("//:mappings.bzl", "filter_directory")
-
-# TODO-NOW: negative tests:
-# Invalid arguments for prefix, strip_prefix, rename, exclude
 
 ############################################################################
 # Base case
@@ -169,4 +167,16 @@ directory(
         "c",
         "d",
     ],
+)
+
+############################################################################
+# Negative tests
+############################################################################
+
+py_test(
+    name = "negative_tests",
+    srcs = ["test_filter_directory.py"],
+    main = "test_filter_directory.py",
+    deps = ["@rules_python//python/runfiles"],
+    data = ["//:filter_directory"],
 )
