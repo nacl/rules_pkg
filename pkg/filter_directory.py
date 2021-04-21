@@ -165,18 +165,23 @@ def main(argv):
     # Figure out if anything is being installed to multiple places in case we
     # missed something above.  Interactions between strip_prefix and renames
     # come to mind, as well as renames to outputs already in the tarball.
-    dest_src_map = {}
+    #
+    # These are converted to strings here because they aren't used again
+    # afterward.
+    dest_src_str_map = {}
     duplicate_mappings = {}
     for src, dest in file_mappings.items():
-        if dest in dest_src_map:
-            dest_src_map[dest].append(src)
-        else:
-            dest_src_map[dest] = [src]
+        rel_srcs_str = str(src.relative_to(dir_in))
+        rel_dest_str = str(dest.relative_to(dir_out))
 
-    # TODO-NOW values need to be converted to strings somewhere
+        if rel_dest_str in dest_src_str_map:
+            dest_src_str_map[rel_dest_str].append(rel_srcs_str)
+        else:
+            dest_src_str_map[rel_dest_str] = [rel_srcs_str]
+
     duplicate_mappings = {
         dest: srcs
-        for dest, srcs in dest_src_map.items()
+        for dest, srcs in dest_src_str_map.items()
         if len(srcs) > 1
     }
 
@@ -187,7 +192,8 @@ def main(argv):
     unused_exclusions = dict(filter(value_unused, excludes_used_map.items()))
     unused_renames = dict(filter(value_unused, renames_used_map.items()))
 
-    # If there are any unused exclusions or renames, fail now.
+    # If there is anything that might result in confusing or unexpected output,
+    # fail now.
     #
     # Empty iterables below are "falsy"
     fail_early = any([
@@ -211,16 +217,19 @@ def main(argv):
         if unused_renames:
             print("    Unused renames:")
             for src in unused_renames.keys():
-                # TODO: this could be formatted more prettily (namely, aligned)
+                # TODO: this could be formatted more prettily, specifically, aligned
                 print("       {} -> {}".format(src, renames_map[src]))
         if files_installed_outside_destdir:
-            print("    Files would be installed outside the destdir {}".format(dir_out))
+            print("    Files would be installed outside DESTDIR:")
             for src in files_installed_outside_destdir:
                 print("       {}".format(src))
         if duplicate_mappings:
             print("    Duplicate destination mappings:")
             for dest, srcs in duplicate_mappings.items():
-                print("       {} <- {}".format(dest, srcs))
+                print("       {} <- {}".format(dest, ', '.join(srcs)))
+        print("")
+        print("Sources relative to      {}".format(dir_in))
+        print("Destinations relative to {}".format(dir_out))
 
         sys.exit(1)
 

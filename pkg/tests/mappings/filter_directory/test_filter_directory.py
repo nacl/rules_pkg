@@ -22,6 +22,13 @@ import unittest
 from rules_python.python.runfiles import runfiles
 
 
+# TODO: These tests are largely to ensure that filter_directory fails, but it
+# does not check _why_ they fail.
+#
+# This would involve changing how filter_directory returns errors, or maybe
+# restructuring it to make it unit-testable.
+#
+# Regardless, this would be significantly more code, and is not yet attempted.
 class FilterDirectoryInternalTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -140,6 +147,16 @@ class FilterDirectoryInternalTest(unittest.TestCase):
             renames=[("foo", "root/a")],
             exclusions=["root/a"],
             message="--rename's of excluded files should be rejected",
+        )
+
+        # strip_prefix and renames can cause collisions, check that they they're
+        # detected.
+        self.assertFilterDirectoryFails(
+            strip_prefix="root",  # valid
+            renames=[("a", "root/subdir/c")],  # Since we're stripping "root/"
+                                               # from "root/a", this should
+                                               # cause an output collision.
+            message="--rename's to paths adjusted by strip_prefix should be rejected",
         )
 
 if __name__ == "__main__":
