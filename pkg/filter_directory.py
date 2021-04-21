@@ -99,6 +99,7 @@ def main(argv):
 
         rel_root = root_path.relative_to(dir_in)
 
+        # Prepend the prefix
         if args.prefix:
             dest_dir = dir_out / args.prefix
         else:
@@ -161,6 +162,24 @@ def main(argv):
     # Check for early failure
     ###########################################################################
 
+    # Figure out if anything is being installed to multiple places in case we
+    # missed something above.  Interactions between strip_prefix and renames
+    # come to mind, as well as renames to outputs already in the tarball.
+    dest_src_map = {}
+    duplicate_mappings = {}
+    for src, dest in file_mappings.items():
+        if dest in dest_src_map:
+            dest_src_map[dest].append(src)
+        else:
+            dest_src_map[dest] = [src]
+
+    # TODO-NOW values need to be converted to strings somewhere
+    duplicate_mappings = {
+        dest: srcs
+        for dest, srcs in dest_src_map.items()
+        if len(srcs) > 1
+    }
+
     def value_unused(value_tuple):
         _, used = value_tuple
         return not used
@@ -176,6 +195,7 @@ def main(argv):
         unused_exclusions,
         unused_renames,
         files_installed_outside_destdir,
+        duplicate_mappings,
     ])
 
     if fail_early:
@@ -197,6 +217,10 @@ def main(argv):
             print("    Files would be installed outside the destdir {}".format(dir_out))
             for src in files_installed_outside_destdir:
                 print("       {}".format(src))
+        if duplicate_mappings:
+            print("    Duplicate destination mappings:")
+            for dest, srcs in duplicate_mappings.items():
+                print("       {} <- {}".format(dest, srcs))
 
         sys.exit(1)
 

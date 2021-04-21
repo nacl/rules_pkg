@@ -102,20 +102,20 @@ class FilterDirectoryInternalTest(unittest.TestCase):
 
     def test_invalid_excludes(self):
         self.assertFilterDirectoryFails(
-            exclusions=["a", "foo"],
+            exclusions=["root/a", "foo"],
             message="--exclude's that are unused should be rejected",
         )
 
     def test_invalid_renames(self):
         # Can't rename files outside the package
         self.assertFilterDirectoryFails(
-            renames=[("a", "../outside")],
+            renames=[("root/a", "../outside")],
             message="--rename's with paths outside the destroot should be rejected",
         )
 
         # Can't rename files to outputs that already exist
         self.assertFilterDirectoryFails(
-            renames=[("a", "subdir/c")],
+            renames=[("root/a", "root/subdir/c")],
             message="--rename's that clobber other output files should be rejected",
         )
 
@@ -123,13 +123,13 @@ class FilterDirectoryInternalTest(unittest.TestCase):
         #
         # Can't rename multiple files to the same destination
         self.assertFilterDirectoryFails(
-            renames=[("a", "subdir/c"), ("a", "subdir/d")],
+            renames=[("root/a", "root/subdir/c"), ("root/a", "root/subdir/d")],
             message="Multiple --rename's to the same destination should be rejected.",
         )
 
         # Can't rename files twice
         self.assertFilterDirectoryFails(
-            renames=[("bar", "a"), ("foo", "a")],
+            renames=[("bar", "root/a"), ("foo", "root/a")],
             message="--rename's that attempt to rename the same source twice should be rejected",
         )
 
@@ -137,8 +137,8 @@ class FilterDirectoryInternalTest(unittest.TestCase):
         # Renames are supposed to occur after exclusions, the rename here should
         # thus be unused.
         self.assertFilterDirectoryFails(
-            renames=[("foo", "a")],
-            exclusions=["a"],
+            renames=[("foo", "root/a")],
+            exclusions=["root/a"],
             message="--rename's of excluded files should be rejected",
         )
 
