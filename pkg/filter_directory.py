@@ -172,7 +172,17 @@ def main(argv):
     duplicate_mappings = {}
     for src, dest in file_mappings.items():
         rel_srcs_str = str(src.relative_to(dir_in))
-        rel_dest_str = str(dest.relative_to(dir_out))
+        try:
+            rel_dest_str = str(dest.relative_to(dir_out))
+        except ValueError:
+            # This can fail if dest is absolute for some reason.  Log something
+            # in case there is a code problem here.
+            print("Ignoring invalid src/dest pair {} -> {}".format(
+                src, dest
+                ),
+                file=sys.stderr,
+            )
+            continue
 
         if rel_dest_str in dest_src_str_map:
             dest_src_str_map[rel_dest_str].append(rel_srcs_str)
