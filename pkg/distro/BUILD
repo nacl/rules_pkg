@@ -18,6 +18,8 @@ load("//releasing:defs.bzl", "print_rel_notes")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_stardoc//stardoc:stardoc.bzl", "stardoc")
 load("@rules_python//python:defs.bzl", "py_test")
+load("//:installer.bzl", "pkg_installer")
+load("//:mappings.bzl", "pkg_files", "pkg_filegroup")
 
 licenses(["notice"])
 
@@ -150,4 +152,23 @@ stardoc(
     deps = [":rules_pkg_lib"],
 )
 
-# TODO(nacl): update this for the new RPM builder; pkg_filegroup
+# Basic package assembly
+pkg_files(
+    name = "all_files",
+    srcs = [
+        ":small_workspace",
+        #"//:standard_package",
+        #"//releasing:standard_package",
+    ],
+    attrs = {"unix": ("-", "-", "-")},
+)
+
+pkg_filegroup(
+    name = "core_pkg",
+    srcs = [":all_files", "//experimental:standard_pf"],
+)
+
+pkg_installer(
+    name = "install",
+    srcs = [":core_pkg"],
+)
