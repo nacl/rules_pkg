@@ -35,6 +35,7 @@ filegroup(
     ],
     visibility = ["//:__pkg__"],
 )
+
 # Helper script used to augment the %install scriptlet and %files list with
 # those found in TreeArtifacts (directory outputs) See also #292.
 py_binary(

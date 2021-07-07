@@ -20,7 +20,7 @@ licenses(["notice"])
 exports_files(
     glob([
         "*.bzl",
-    ]) + ["installer.sh.in"],
+    ]) + ["install.py.in"],
     visibility = ["//visibility:public"],
 )
 

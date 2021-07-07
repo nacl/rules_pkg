@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+import collections
+import json
+import logging
+import os
+
+INSTALL_CMD = os.getenv("INSTALL") or "/usr/bin/install"
+CP_CMD = os.getenv("CP") or "/usr/bin/cp"
+LN_CMD = os.getenv("LN") or "/usr/bin/ln"
+
+ManifestEntry = collections.namedtuple("ManifestEntry",
+                                       ['entry_type', 'dest', 'src', 'mode', 'user', 'group'])
+
+# Possible values for entry_type
+# These must be kept in sync with the declarations in private/build_*.py
+ENTRY_IS_FILE = 0  # Entry is a file: take content from <src>
+ENTRY_IS_LINK = 1  # Entry is a symlink: dest -> <src>
+ENTRY_IS_DIR = 2  # Entry is an empty dir
+ENTRY_IS_TREE = 3  # Entry is a tree artifact: take tree from <src>
+
+
+class NativeInstaller(object):
+    def __init__(self, default_user=None, default_group=None, destdir=None):
+        self.default_user = default_user
+        self.default_group = default_group
+        self.destdir = destdir
+        self.entries = []
+
+    def _do_file_copy(self, src, dest, mode, user, group):
+        pass
+
+    def _do_mkdir(self, dirname, mode, user, group):
+        pass
+
+    def _do_symlink(self, target, link_name, mode, user, group):
+        pass
+
+    def _maybe_mkdir(self, path):
+        logging.info("MKDIR (unowned) %s", path)
+        logging.info("CHMOD %s %s", path, "0755")
+        logging.info("CHOWN %s:%s %s", self.default_user, self.default_group)
+
+    def _install_file(self, entry):
+        _maybe_mkdir(os.path.dirname(entry.dest))
+        logging.info("COPY %s <- %s", entry.dest, entry.src)
+        logging.info("CHMOD %s %s", entry.dest, entry.mode)
+        logging.info("CHOWN %s:%s %s", entry.dest, entry.user, entry.group)
+
+    def _install_directory(self, entry):
+        _maybe_mkdir(os.path.dirname(entry.dest))
+        logging.info("MKDIR %s", entry.dest)
+        logging.info("CHMOD %s %s", entry.dest, entry.mode)
+        logging.info("CHOWN %s:%s %s", entry.dest, entry.user, entry.group)
+
+    def _install_treeartifact(self, entry):
+        logging.info("COPYTREE %s <- %s/**", entry.dest, entry.src)
+        for root, dirs, files in os.walk(entry.src):
+            relative_installdir = os.path.join(entry.dest, root)
+            for d in dirs:
+                _maybe_mkdir(os.path.join(relative_installdir, d))
+
+            logging.info("COPY_FROM_TREE %s <- %s", entry.dest, entry.src)
+            logging.info("CHMOD %s %s", entry.dest, entry.mode)
+            logging.info("CHOWN %s:%s %s", entry.dest, entry.user, entry.group)
+
+    def _install_symlink(self, entry):
+        logging.info("SYMLINK %s <- %s", entry.dest, entry.link_to)
+        logging.info("CHMOD %s %s", entry.dest, entry.mode)
+        logging.info("CHOWN %s.%s %s", entry.dest, entry.user, entry.group)
+
+    def include_manifest_path(self, path):
+        with open(path, 'r') as fh:
+            self.include_manifest(fh)
+
+    def include_manifest(self, manifest_fh):
+        manifest_entries = json.load(manifest_fh)
+
+        for entry in manifest_entries:
+            self.entries.append(ManifestEntry(*entry))
+
+    def do_the_thing(self):
+        for entry in self.entries:
+            if entry.entry_type == ENTRY_IS_FILE:
+                self._install_file(entry)
+            elif entry.entry_type == ENTRY_IS_LINK:
+                self._install_symlink(entry)
+            elif entry.entry_type == ENTRY_IS_DIR:
+                self._install_directory(entry)
+            elif entry.entry_type == ENTRY_IS_TREE:
+                self._install_treeartifact(entry)
+            else:
+                # TODO: log fatal
+                pass
+
+
+destdir = os.getenv("DESTDIR") or None
+installer = NativeInstaller(destdir=destdir)
+
+print(os.access("##MANIFEST_INCLUSION##", os.F_OK))
+
+installer.do_the_thing()
