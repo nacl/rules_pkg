@@ -31,10 +31,17 @@ def _pkg_install_script_impl(ctx):
     manifest_file = ctx.actions.declare_file(ctx.attr.name + "-install-manifest.json")
     write_manifest(ctx, manifest_file, content_map, short_path = True)
 
+    # Runfiles
+    workspace_name = ctx.workspace_name
+    execution_root_relative_path = "%s/%s" % (runfiles_root, workspace_name)
+
     ctx.actions.expand_template(
         template = ctx.file.script_template,
         output = script_file,
-        substitutions = {"##MANIFEST_INCLUSION##": manifest_file.short_path},
+        substitutions = {
+            "##MANIFEST_INCLUSION##": manifest_file.short_path,
+            "##WORKSPACE_NAME##": ctx.workspace_name,
+        },
         is_executable = True,
     )
 
@@ -43,12 +50,10 @@ def _pkg_install_script_impl(ctx):
         transitive_files = depset(transitive = files_to_run),
     )
 
-    all_runfiles = my_runfiles.merge(ctx.attr._py_runfiles[DefaultInfo].default_runfiles)
-
     return [
         DefaultInfo(
             files = depset([script_file]),
-            runfiles = all_runfiles,
+            runfiles = my_runfiles,
             executable = script_file,
         ),
     ]
@@ -70,9 +75,6 @@ _pkg_install_script = rule(
             allow_single_file = True,
             default = "//:install.py.in",
         ),
-        "_py_runfiles": attr.label(
-            default = "@bazel_tools//tools/python/runfiles",
-        ),
     },
     executable = True,
 )
@@ -90,5 +92,6 @@ def pkg_install(name, srcs, **kwargs):
         name = name,
         srcs = [":" + name + "_install_script"],
         main = name + "_install_script.py",
+        deps = ["@rules_python//python/runfiles"],
         **kwargs
     )

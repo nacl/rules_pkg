@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
 
+# Copyright 2021 The Bazel Authors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import collections
 import json
 import logging
@@ -21,6 +35,14 @@ ENTRY_IS_LINK = 1  # Entry is a symlink: dest -> <src>
 ENTRY_IS_DIR = 2  # Entry is an empty dir
 ENTRY_IS_TREE = 3  # Entry is a tree artifact: take tree from <src>
 
+# Bazel's documentation claims these are set when calling `bazel run`, but not other
+# modes, like in `build` or `test`.  We'll see.
+CALLED_FROM_BAZEL_RUN = bool(os.getenv("BUILD_WORKSPACE_DIRECTORY") and os.getenv("BUILD_WORKING_DIRECTORY"))
+
+WORKSPACE_NAME = "##WORKSPACE_NAME##"
+RUNFILE_PREFIX = os.path.join(os.getenv("RUNFILES_DIR"), WORKSPACE_NAME) if os.getenv("RUNFILES_DIR") else None
+
+runfiles = runfiles.Create()
 
 class NativeInstaller(object):
     def __init__(self, default_user=None, default_group=None, destdir=None):
@@ -29,6 +51,10 @@ class NativeInstaller(object):
         self.destdir = destdir
         self.entries = []
 
+    # Logger helper method, may not be necessary or desired
+    def _subst_destdir(path, self):
+        return path.replace(self.destdir, "$DESTDIR")
+
     def _chown_chmod(self, dest, mode, user, group):
         if mode:
             logging.info("CHMOD %s %s", mode, dest)
@@ -36,9 +62,8 @@ class NativeInstaller(object):
             logging.info("CHOWN %s:%s %s", user, group, dest)
 
     def _do_file_copy(self, src, dest, mode, user, group):
-        real_dest = os.path.join(self.destdir, dest)
-        logging.info("COPY %s <- %s", real_dest, src)
-        shutil.copyfile(src, real_dest)
+        logging.info("COPY %s <- %s", dest, src)
+        shutil.copyfile(src, dest)
 
     def _do_mkdir(self, dirname, mode, user, group):
         logging.info("MKDIR %s %s", mode, dirname)
@@ -57,10 +82,9 @@ class NativeInstaller(object):
                          path)
 
     def _install_file(self, entry):
-        real_dest = os.path.join(self.destdir, entry.dest)
-        self._maybe_make_unowned_dir(os.path.dirname(real_dest))
-        self._do_file_copy(entry.src, real_dest, entry.mode, entry.user, entry.group)
-        self._chown_chmod(real_dest, entry.mode, entry.user, entry.group)
+        self._maybe_make_unowned_dir(os.path.dirname(entry.dest))
+        self._do_file_copy(entry.src, entry.dest, entry.mode, entry.user, entry.group)
+        self._chown_chmod(entry.dest, entry.mode, entry.user, entry.group)
 
     def _install_directory(self, entry):
         real_dest = os.path.join(self.destdir, entry.dest)
@@ -94,8 +118,17 @@ class NativeInstaller(object):
         manifest_entries = json.load(manifest_fh)
 
         for entry in manifest_entries:
-            self.entries.append(ManifestEntry(*entry))
-        print(len(self.entries))
+            # Swap out the source with the actual "runfile" location
+            if not CALLED_FROM_BAZEL_RUN and entry[2] is not None:
+                #print("TRANSFORM", entry[2], os.path.join(RUNFILE_PREFIX, entry[2]))
+                #print("RUNFILE_PREFIX", RUNFILE_PREFIX)
+                entry[2] = os.path.join(RUNFILE_PREFIX, entry[2])
+            # Prepend the destdir path to all installation paths, if one is specified
+            if self.destdir is not None:
+                entry[1] = os.path.join(self.destdir, entry[1])
+            entry_struct = ManifestEntry(*entry)
+            self.entries.append(entry_struct)
+        print(self.entries)
 
     def do_the_thing(self):
         for entry in self.entries:
@@ -113,12 +146,20 @@ class NativeInstaller(object):
 
 logging.getLogger().setLevel(logging.INFO)
 
+#print(os.environ)
+
 destdir = os.getenv("DESTDIR") or None
 installer = NativeInstaller(destdir=destdir)
 
-subprocess.call(["find", "."])
+#subprocess.call(["find", "."])
+#subprocess.call(["cat", os.getenv("RUNFILES_MANIFEST_FILE")])
 
+#print(type(runfiles._strategy))
 for f in ["##MANIFEST_INCLUSION##"]:
-    installer.include_manifest_path(f)
+    #installer.include_manifest_path(runfiles.Rlocation(f))
+    if CALLED_FROM_BAZEL_RUN:
+        installer.include_manifest_path(f)
+    else:
+        installer.include_manifest_path(os.path.join(RUNFILE_PREFIX, f))
 
 installer.do_the_thing()
