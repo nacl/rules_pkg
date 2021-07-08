@@ -22,8 +22,12 @@ load(":defs.bzl", "capture_pkg_install")
 py_test(
     name = "install",
     srcs = ["test.py"],
-    data = [":installed_dir"],
+    data = [":installed_dir", ":test_installer"],
     main = "test.py",
+    deps = [
+        "//private:manifest",
+        "@rules_python//python/runfiles",
+    ],
 )
 
 capture_pkg_install(
