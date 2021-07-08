@@ -23,6 +23,7 @@ py_test(
     name = "install",
     srcs = ["test.py"],
     data = [":installed_dir"],
+    main = "test.py",
 )
 
 capture_pkg_install(

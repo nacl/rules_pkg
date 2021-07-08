@@ -42,8 +42,6 @@ CALLED_FROM_BAZEL_RUN = bool(os.getenv("BUILD_WORKSPACE_DIRECTORY") and os.geten
 WORKSPACE_NAME = "##WORKSPACE_NAME##"
 RUNFILE_PREFIX = os.path.join(os.getenv("RUNFILES_DIR"), WORKSPACE_NAME) if os.getenv("RUNFILES_DIR") else None
 
-runfiles = runfiles.Create()
-
 class NativeInstaller(object):
     def __init__(self, default_user=None, default_group=None, destdir=None):
         self.default_user = default_user

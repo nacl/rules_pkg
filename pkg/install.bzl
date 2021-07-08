@@ -32,9 +32,6 @@ def _pkg_install_script_impl(ctx):
     write_manifest(ctx, manifest_file, content_map, short_path = True)
 
     # Runfiles
-    workspace_name = ctx.workspace_name
-    execution_root_relative_path = "%s/%s" % (runfiles_root, workspace_name)
-
     ctx.actions.expand_template(
         template = ctx.file.script_template,
         output = script_file,
@@ -92,6 +89,5 @@ def pkg_install(name, srcs, **kwargs):
         name = name,
         srcs = [":" + name + "_install_script"],
         main = name + "_install_script.py",
-        deps = ["@rules_python//python/runfiles"],
         **kwargs
     )
