@@ -36,14 +36,21 @@ class PkgInstallTest(unittest.TestCase):
                 cls.manifest_data[entry_struct.dest] = entry_struct
 
     def test_manifest_matches(self):
+        # TODO-NOW: check for file attributes (mode, user, group)
         dir_path = self.runfiles.Rlocation('rules_pkg/tests/install/installed_dir')
 
         found_entries = {dest : False for dest in self.manifest_data.keys()}
         for root, dirs, files in os.walk(dir_path):
-            # TODO: check for treeartifacts here.  If so, set aside for future
-            # processing.
+            # TODO(nacl): check for treeartifacts here.  If so, prune `dirs`,
+            # and set the rest aside for future processing.
+
+            # TODO-NOW: check for directory ownership.  If it's empty, it can
+            # only be owned (via a PackageDirsInfo).
+            #
+            # If it's not empty, it can be owned or unowned, depending on the
+            # overall context.
             if len(files) == 0:
-                # TODO: handle empty directories
+                # TODO-NOW: handle empty directories
                 pass
             for f in files:
                 fpath = "/".join(root, f)
@@ -51,9 +58,10 @@ class PkgInstallTest(unittest.TestCase):
                     # TODO: compare file types -- check for symlinks, files
                     self.fail("Entity {} not in manifest".format(fpath))
                     found_entries[fpath] = True
-        # TODO: check for TreeArtifacts
 
-        # TODO: verify we haven't missed anything
+        # TODO(nacl): check for TreeArtifacts
+
+        # TODO-NOW: verify we haven't missed anything
 
 
 if __name__ == "__main__":
