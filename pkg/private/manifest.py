@@ -14,7 +14,9 @@
 
 import collections
 
-# These must be kept in sync with the declarations in private/build_*.py
+# TODO(nacl): have other parts of the build consume these structures
+#
+# In the meantime, these must be kept in sync with the declarations in private/build_*.py
 ENTRY_IS_FILE = 0  # Entry is a file: take content from <src>
 ENTRY_IS_LINK = 1  # Entry is a symlink: dest -> <src>
 ENTRY_IS_DIR = 2  # Entry is an empty dir

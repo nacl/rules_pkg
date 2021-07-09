@@ -14,26 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
+import argparse
 import json
 import logging
 import os
 import shutil
-import subprocess
+import sys
 
-INSTALL_CMD = os.getenv("INSTALL") or "/usr/bin/install"
-CP_CMD = os.getenv("CP") or "/usr/bin/cp"
-LN_CMD = os.getenv("LN") or "/usr/bin/ln"
-
-ManifestEntry = collections.namedtuple("ManifestEntry",
-                                       ['entry_type', 'dest', 'src', 'mode', 'user', 'group'])
-
-# Possible values for entry_type
-# These must be kept in sync with the declarations in private/build_*.py
-ENTRY_IS_FILE = 0  # Entry is a file: take content from <src>
-ENTRY_IS_LINK = 1  # Entry is a symlink: dest -> <src>
-ENTRY_IS_DIR = 2  # Entry is an empty dir
-ENTRY_IS_TREE = 3  # Entry is a tree artifact: take tree from <src>
+import private.manifest as manifest
 
 # Bazel's documentation claims these are set when calling `bazel run`, but not other
 # modes, like in `build` or `test`.  We'll see.
@@ -103,10 +91,10 @@ class NativeInstaller(object):
             logging.info("CHOWN %s:%s %s", entry.user, entry.group, entry.dest)
 
     def _install_symlink(self, entry):
+        raise NotImplementedError("symlinking not yet supported")
         logging.info("SYMLINK %s <- %s", entry.dest, entry.link_to)
         logging.info("CHMOD %s %s", entry.dest, entry.mode)
         logging.info("CHOWN %s.%s %s", entry.dest, entry.user, entry.group)
-        raise NotImplementedError("symlinking not yet supported")
 
     def include_manifest_path(self, path):
         with open(path, 'r') as fh:
@@ -116,48 +104,68 @@ class NativeInstaller(object):
         manifest_entries = json.load(manifest_fh)
 
         for entry in manifest_entries:
-            # Swap out the source with the actual "runfile" location
+            # Swap out the source with the actual "runfile" location if we're
+            # called as a part of the build rather than "bazel run"
             if not CALLED_FROM_BAZEL_RUN and entry[2] is not None:
-                #print("TRANSFORM", entry[2], os.path.join(RUNFILE_PREFIX, entry[2]))
-                #print("RUNFILE_PREFIX", RUNFILE_PREFIX)
                 entry[2] = os.path.join(RUNFILE_PREFIX, entry[2])
-            # Prepend the destdir path to all installation paths, if one is specified
+            # Prepend the destdir path to all installation paths, if one is
+            # specified.
             if self.destdir is not None:
                 entry[1] = os.path.join(self.destdir, entry[1])
-            entry_struct = ManifestEntry(*entry)
+            entry_struct = manifest.ManifestEntry(*entry)
             self.entries.append(entry_struct)
-        print(self.entries)
 
     def do_the_thing(self):
         for entry in self.entries:
-            if entry.entry_type == ENTRY_IS_FILE:
+            if entry.entry_type == manifest.ENTRY_IS_FILE:
                 self._install_file(entry)
-            elif entry.entry_type == ENTRY_IS_LINK:
+            elif entry.entry_type == manifest.ENTRY_IS_LINK:
                 self._install_symlink(entry)
-            elif entry.entry_type == ENTRY_IS_DIR:
+            elif entry.entry_type == manifest.ENTRY_IS_DIR:
                 self._install_directory(entry)
-            elif entry.entry_type == ENTRY_IS_TREE:
+            elif entry.entry_type == manifest.ENTRY_IS_TREE:
                 self._install_treeartifact(entry)
             else:
-                logging.error("Invalid entry type %d", entry.entry_type)
-                pass
+                raise ValueError("Unrecognized entry type %d" % entry.entry_type)
 
-logging.getLogger().setLevel(logging.INFO)
 
-#print(os.environ)
+def main(args):
+    parser = argparse.ArgumentParser(
+        prog="bazel run -- ##TARGET_LABEL##",
+        description='Installer for bazel target ##TARGET_LABEL##',
+        fromfile_prefix_chars='@',
+    )
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help="Be verbose.  Specify multiple times to increase verbosity further")
+    parser.add_argument('-q', '--quiet', action='count', default=0,
+                        help="Be quieter.  Specify multiple times to be more quiet")
+    # TODO(nacl): consider supporting DESTDIR=/whatever syntax, like "make install"
+    parser.add_argument('--destdir', action='store', default=os.getenv("DESTDIR"),
+                        help="Installation root directory (defaults to DESTDIR environment variable)")
 
-destdir = os.getenv("DESTDIR") or None
-installer = NativeInstaller(destdir=destdir)
+    args = parser.parse_args()
 
-#subprocess.call(["find", "."])
-#subprocess.call(["cat", os.getenv("RUNFILES_MANIFEST_FILE")])
+    loudness = args.verbose - args.quiet
 
-#print(type(runfiles._strategy))
-for f in ["##MANIFEST_INCLUSION##"]:
-    #installer.include_manifest_path(runfiles.Rlocation(f))
-    if CALLED_FROM_BAZEL_RUN:
-        installer.include_manifest_path(f)
-    else:
-        installer.include_manifest_path(os.path.join(RUNFILE_PREFIX, f))
+    if loudness == -1:
+        logging.getLogger().setLevel(logging.ERROR)
+    if loudness == 0:
+        logging.getLogger().setLevel(logging.WARNING)
+    if loudness == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    if loudness == 2:
+        logging.getLogger().setLevel(logging.DEBUG)
 
-installer.do_the_thing()
+    installer = NativeInstaller(destdir=args.destdir)
+
+    for f in ["##MANIFEST_INCLUSION##"]:
+        if CALLED_FROM_BAZEL_RUN:
+            installer.include_manifest_path(f)
+        else:
+            installer.include_manifest_path(os.path.join(RUNFILE_PREFIX, f))
+
+    installer.do_the_thing()
+
+
+if __name__ == "__main__":
+    exit(main(sys.argv))

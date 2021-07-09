@@ -1,4 +1,4 @@
-# Copyright 2020 The Bazel Authors. All rights reserved.
+# Copyright 2021 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +11,37 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""rules for creating install scripts from pkg_filegroups and friends.
+
+This module provides an interface (`pkg_install`) for creating a `bazel
+run`-able installation script.
+
+For example:
+
+```python
+pkg_install(
+    name = "install",
+    srcs = [
+        # mapping/grouping targets here
+    ],
+)
+```
+
+Installation can be done by invoking:
+
+```
+bazel run -- //path/to:install
+```
+
+Additional features can be accessed by invoking the script with the --help
+option:
+
+```
+bazel run -- //path/to:install --help
+```
+
+"""
 
 load("//:providers.bzl", "PackageDirsInfo", "PackageFilegroupInfo", "PackageFilesInfo", "PackageSymlinkInfo")
 load("//private:pkg_files.bzl", "process_src", "write_manifest")
@@ -31,6 +62,19 @@ def _pkg_install_script_impl(ctx):
     manifest_file = ctx.actions.declare_file(ctx.attr.name + "-install-manifest.json")
     write_manifest(ctx, manifest_file, content_map, short_path = True)
 
+    # Get the label of the actual py_binary used to run this script.
+    #
+    # This is super brittle, but I don't know how to otherwise get this
+    # information without creating a circular dependency given the current state
+    # of rules_python.
+    binary_label_str = "{}//{}:{}".format(
+        ctx.label.workspace_name,
+        ctx.label.package,
+        # The name of the binary is the name of this target, minus
+        # "_install_script".
+        ctx.label.name[:-len("_install_script")],
+    )
+
     # Runfiles
     ctx.actions.expand_template(
         template = ctx.file.script_template,
@@ -38,6 +82,7 @@ def _pkg_install_script_impl(ctx):
         substitutions = {
             "##MANIFEST_INCLUSION##": manifest_file.short_path,
             "##WORKSPACE_NAME##": ctx.workspace_name,
+            "##TARGET_LABEL##": str(Label(binary_label_str)),
         },
         is_executable = True,
     )
@@ -89,5 +134,6 @@ def pkg_install(name, srcs, **kwargs):
         name = name,
         srcs = [":" + name + "_install_script"],
         main = name + "_install_script.py",
+        deps = ["@rules_pkg//private:manifest"],
         **kwargs
     )

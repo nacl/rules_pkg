@@ -111,5 +111,5 @@ py_library(
     name = "manifest",
     srcs = ["manifest.py"],
     srcs_version = "PY3",
-    visibility = ["//tests:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
