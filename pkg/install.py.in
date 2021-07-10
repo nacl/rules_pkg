@@ -166,6 +166,5 @@ def main(args):
 
     installer.do_the_thing()
 
-
 if __name__ == "__main__":
     exit(main(sys.argv))

@@ -18,8 +18,11 @@ import json
 import os
 import unittest
 
+import pwd
+import grp
+
 from rules_python.python.runfiles import runfiles
-from private.manifest import ENTRY_IS_FILE, ENTRY_IS_LINK, ENTRY_IS_DIR, ENTRY_IS_TREE, ManifestEntry
+from private.manifest import ENTRY_IS_FILE, ENTRY_IS_LINK, ENTRY_IS_DIR, ENTRY_IS_TREE, ManifestEntry, entry_type_to_string
 
 class PkgInstallTest(unittest.TestCase):
     @classmethod
@@ -35,9 +38,22 @@ class PkgInstallTest(unittest.TestCase):
                 entry_struct = ManifestEntry(*entry)
                 cls.manifest_data[entry_struct.dest] = entry_struct
 
+    def entity_type_at_path(self, path):
+        if os.path.islink(path):
+            return ENTRY_IS_LINK
+        elif os.path.isfile(path):
+            return ENTRY_IS_FILE
+        elif os.path.isdir(path):
+            return ENTRY_IS_DIR
+        else:
+            # We can't infer what TreeArtifacts are by looking at them -- the
+            # build system is not aware of their contents.
+            raise ValueError("Entity {} is not a link, file, or directory")
+
     def test_manifest_matches(self):
         # TODO-NOW: check for file attributes (mode, user, group)
         dir_path = self.runfiles.Rlocation('rules_pkg/tests/install/installed_dir')
+        print(dir_path)
 
         found_entries = {dest : False for dest in self.manifest_data.keys()}
         for root, dirs, files in os.walk(dir_path):
@@ -49,19 +65,45 @@ class PkgInstallTest(unittest.TestCase):
             #
             # If it's not empty, it can be owned or unowned, depending on the
             # overall context.
+            print(files)
             if len(files) == 0:
                 # TODO-NOW: handle empty directories
                 pass
+            rel_root_path = os.path.relpath(root, dir_path)
+
             for f in files:
-                fpath = "/".join(root, f)
+                # FIXME: try pathlib here
+                fpath = "/".join([rel_root_path, f])
                 if fpath not in self.manifest_data:
-                    # TODO: compare file types -- check for symlinks, files
+                    print(self.manifest_data)
                     self.fail("Entity {} not in manifest".format(fpath))
-                    found_entries[fpath] = True
+
+                entry = self.manifest_data[fpath]
+                real_etype = self.entity_type_at_path(path)
+
+                if entry.entry_type != real_etype:
+                    self.fail("Entity {} should be a {}, but was actually {}".format(
+                        fpath,
+                        entry_type_to_string(entry.entry_type),
+                        entry_type_to_string(real_etype),
+                    ))
+                found_entries[fpath] = True
+
+                print(entry)
+
+                # TODO: permissions in windows are... tricky.  Don't bother
+                # testing for them if we're in it for the time being
+                if os.name == 'nt':
+                    continue
 
         # TODO(nacl): check for TreeArtifacts
 
-        # TODO-NOW: verify we haven't missed anything
+        num_missing = 0
+        for dest, present in found_entries.items():
+            if present is False:
+                print("Entity {} is missing from the tree".format(dest))
+                num_missing += 1
+        self.assertEqual(num_missing, 0)
 
 
 if __name__ == "__main__":

@@ -19,8 +19,20 @@ import collections
 # In the meantime, these must be kept in sync with the declarations in private/build_*.py
 ENTRY_IS_FILE = 0  # Entry is a file: take content from <src>
 ENTRY_IS_LINK = 1  # Entry is a symlink: dest -> <src>
-ENTRY_IS_DIR = 2  # Entry is an empty dir
+ENTRY_IS_DIR = 2  # Entry is an owned dir, possibly empty
 ENTRY_IS_TREE = 3  # Entry is a tree artifact: take tree from <src>
 
 ManifestEntry = collections.namedtuple("ManifestEntry",
                                        ['entry_type', 'dest', 'src', 'mode', 'user', 'group'])
+
+def entry_type_to_string(et):
+    if et == ENTRY_IS_FILE:
+        return "file"
+    elif et == ENTRY_IS_LINK:
+        return "symlink",
+    elif et == ENTRY_IS_DIR:
+        return "directory"
+    elif et == ENTRY_IS_TREE:
+        return "tree"
+    else:
+        raise ValueError("Invalid entry id {}".format(et))

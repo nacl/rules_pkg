@@ -22,12 +22,23 @@ load(":defs.bzl", "capture_pkg_install")
 py_test(
     name = "install",
     srcs = ["test.py"],
-    data = [":installed_dir", ":test_installer"],
+    data = [
+        #":installed_dir",
+        ":why_cant_we_have_nice_things",
+        ":test_installer",
+    ],
     main = "test.py",
     deps = [
         "//private:manifest",
         "@rules_python//python/runfiles",
     ],
+    args = ["-v"]
+)
+
+# TODO-NOW: This shouldn't be necessary.  Why do runfiles hate me? :(
+sh_library(
+    name = "why_cant_we_have_nice_things",
+    data = [":installed_dir"],
 )
 
 capture_pkg_install(
