@@ -72,14 +72,17 @@ class PkgInstallTest(unittest.TestCase):
             rel_root_path = os.path.relpath(root, dir_path)
 
             for f in files:
-                # FIXME: try pathlib here
-                fpath = "/".join([rel_root_path, f])
-                if fpath not in self.manifest_data:
+                # The path on the filesystem in which the file actually exists.
+                fpath = os.path.normpath("/".join([root, f]))
+                # The path inside the manifest (relative to the install
+                # destdir).
+                rel_fpath = os.path.normpath("/".join([rel_root_path, f]))
+                if rel_fpath not in self.manifest_data:
                     print(self.manifest_data)
-                    self.fail("Entity {} not in manifest".format(fpath))
+                    self.fail("Entity {} not in manifest".format(rel_fpath))
 
-                entry = self.manifest_data[fpath]
-                real_etype = self.entity_type_at_path(path)
+                entry = self.manifest_data[rel_fpath]
+                real_etype = self.entity_type_at_path(fpath)
 
                 if entry.entry_type != real_etype:
                     self.fail("Entity {} should be a {}, but was actually {}".format(
@@ -87,9 +90,8 @@ class PkgInstallTest(unittest.TestCase):
                         entry_type_to_string(entry.entry_type),
                         entry_type_to_string(real_etype),
                     ))
-                found_entries[fpath] = True
+                found_entries[rel_fpath] = True
 
-                print(entry)
 
                 # TODO: permissions in windows are... tricky.  Don't bother
                 # testing for them if we're in it for the time being

@@ -18,7 +18,14 @@ load("//:mappings.bzl", "pkg_files", "pkg_attributes")
 load("//:install.bzl", "pkg_install")
 load(":defs.bzl", "capture_pkg_install")
 
+# Test whether `pkg_install` does the right thing... mostly.
+#
+# This mostly ensures that the tests install the right files to the right
+# places.  It cannot reliably test modifications
 
+# TODO(nacl): consider instead testing by invoking the tool within the test
+# itself.  There is no need to capture anything inside bazel.  That way we could
+# actually test fancy features
 py_test(
     name = "install",
     srcs = ["test.py"],
@@ -32,7 +39,10 @@ py_test(
         "//private:manifest",
         "@rules_python//python/runfiles",
     ],
-    args = ["-v"]
+    args = ["-v"],
+    # Sandboxing can make symlinks out of paths; so disable sandboxing to
+    # simplify testing.
+    tags = ["no-sandbox"],
 )
 
 # TODO-NOW: This shouldn't be necessary.  Why do runfiles hate me? :(
