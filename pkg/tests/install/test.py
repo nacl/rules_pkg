@@ -17,6 +17,7 @@
 import json
 import os
 import unittest
+import subprocess
 
 import pwd
 import grp
@@ -37,6 +38,15 @@ class PkgInstallTest(unittest.TestCase):
             for entry in manifest_data_raw:
                 entry_struct = ManifestEntry(*entry)
                 cls.manifest_data[entry_struct.dest] = entry_struct
+        cls.installdir = os.path.join(os.getenv("TEST_TMPDIR"), "installdir")
+        env = {}
+        env.update(cls.runfiles.EnvVars())
+        subprocess.check_call([
+            cls.runfiles.Rlocation("rules_pkg/tests/install/test_installer"),
+            "--destdir", cls.installdir,
+            "--verbose",
+        ],
+                              env=env)
 
     def entity_type_at_path(self, path):
         if os.path.islink(path):
@@ -52,11 +62,8 @@ class PkgInstallTest(unittest.TestCase):
 
     def test_manifest_matches(self):
         # TODO-NOW: check for file attributes (mode, user, group)
-        dir_path = self.runfiles.Rlocation('rules_pkg/tests/install/installed_dir')
-        print(dir_path)
-
         found_entries = {dest : False for dest in self.manifest_data.keys()}
-        for root, dirs, files in os.walk(dir_path):
+        for root, dirs, files in os.walk(self.installdir):
             # TODO(nacl): check for treeartifacts here.  If so, prune `dirs`,
             # and set the rest aside for future processing.
 
@@ -69,11 +76,12 @@ class PkgInstallTest(unittest.TestCase):
             if len(files) == 0:
                 # TODO-NOW: handle empty directories
                 pass
-            rel_root_path = os.path.relpath(root, dir_path)
+            rel_root_path = os.path.relpath(root, self.installdir)
 
             for f in files:
                 # The path on the filesystem in which the file actually exists.
                 fpath = os.path.normpath("/".join([root, f]))
+                subprocess.call(["ls", "-l", fpath])
                 # The path inside the manifest (relative to the install
                 # destdir).
                 rel_fpath = os.path.normpath("/".join([rel_root_path, f]))
@@ -90,8 +98,8 @@ class PkgInstallTest(unittest.TestCase):
                         entry_type_to_string(entry.entry_type),
                         entry_type_to_string(real_etype),
                     ))
-                found_entries[rel_fpath] = True
 
+                found_entries[rel_fpath] = True
 
                 # TODO: permissions in windows are... tricky.  Don't bother
                 # testing for them if we're in it for the time being
