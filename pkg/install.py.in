@@ -25,10 +25,12 @@ import private.manifest as manifest
 
 # Bazel's documentation claims these are set when calling `bazel run`, but not other
 # modes, like in `build` or `test`.  We'll see.
-CALLED_FROM_BAZEL_RUN = bool(os.getenv("BUILD_WORKSPACE_DIRECTORY") and os.getenv("BUILD_WORKING_DIRECTORY"))
+CALLED_FROM_BAZEL_RUN = bool(os.getenv("BUILD_WORKSPACE_DIRECTORY") and
+                             os.getenv("BUILD_WORKING_DIRECTORY"))
 
 WORKSPACE_NAME = "##WORKSPACE_NAME##"
 RUNFILE_PREFIX = os.path.join(os.getenv("RUNFILES_DIR"), WORKSPACE_NAME) if os.getenv("RUNFILES_DIR") else None
+
 
 class NativeInstaller(object):
     def __init__(self, default_user=None, default_group=None, destdir=None):
@@ -44,6 +46,7 @@ class NativeInstaller(object):
     def _chown_chmod(self, dest, mode, user, group):
         if mode:
             logging.info("CHMOD %s %s", mode, dest)
+            os.chmod(dest, int(mode, 8))
         if user or group:
             logging.info("CHOWN %s:%s %s", user, group, dest)
 
