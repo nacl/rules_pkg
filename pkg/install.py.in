@@ -29,6 +29,7 @@ CALLED_FROM_BAZEL_RUN = bool(os.getenv("BUILD_WORKSPACE_DIRECTORY") and
                              os.getenv("BUILD_WORKING_DIRECTORY"))
 
 WORKSPACE_NAME = "##WORKSPACE_NAME##"
+# This seems to be set when running in `bazel build` or `bazel test`.
 RUNFILE_PREFIX = os.path.join(os.getenv("RUNFILES_DIR"), WORKSPACE_NAME) if os.getenv("RUNFILES_DIR") else None
 
 
@@ -49,6 +50,8 @@ class NativeInstaller(object):
             os.chmod(dest, int(mode, 8))
         if user or group:
             logging.info("CHOWN %s:%s %s", user, group, dest)
+            # Ownership can only be changed by sufficiently
+            # privileged users.
             # TODO(nacl): This is unix-only
             if os.getuid() == 0:
                 shutil.chown(dest, user, group)
@@ -62,16 +65,13 @@ class NativeInstaller(object):
         os.makedirs(dirname, int(mode, 8), exist_ok=True)
 
     def _do_symlink(self, target, link_name, mode, user, group):
-        pass
+        raise NotImplementedError("symlinking not yet supported")
 
     def _maybe_make_unowned_dir(self, path):
         logging.info("MKDIR (unowned) %s", path)
+        # TODO(nacl): consider default permissions here
+        # TODO(nacl): consider default ownership here
         os.makedirs(path, 0o755, exist_ok=True)
-        # if self.default_user or self.default_group:
-        #     logging.info("CHOWN %s:%s %s",
-        #                  self.default_user or "",
-        #                  self.default_group or "",
-        #                  path)
 
     def _install_file(self, entry):
         self._maybe_make_unowned_dir(os.path.dirname(entry.dest))
@@ -170,6 +170,7 @@ def main(args):
             installer.include_manifest_path(os.path.join(RUNFILE_PREFIX, f))
 
     installer.do_the_thing()
+
 
 if __name__ == "__main__":
     exit(main(sys.argv))
