@@ -17,13 +17,12 @@
 import json
 import os
 import unittest
+import stat
 import subprocess
 
-import pwd
-import grp
-
 from rules_python.python.runfiles import runfiles
-from private.manifest import ENTRY_IS_FILE, ENTRY_IS_LINK, ENTRY_IS_DIR, ENTRY_IS_TREE, ManifestEntry, entry_type_to_string
+from private.manifest import ENTRY_IS_FILE, ENTRY_IS_LINK, ENTRY_IS_DIR, ManifestEntry, entry_type_to_string
+
 
 class PkgInstallTest(unittest.TestCase):
     @classmethod
@@ -60,51 +59,74 @@ class PkgInstallTest(unittest.TestCase):
             # build system is not aware of their contents.
             raise ValueError("Entity {} is not a link, file, or directory")
 
+    def assertEntryTypeMatches(self, entry, actual_path):
+        actual_entry_type = self.entity_type_at_path(actual_path)
+        self.assertEqual(actual_entry_type, entry.entry_type,
+                        "Entity {} should be a {}, but was actually {}".format(
+                            entry.dest,
+                            entry_type_to_string(entry.entry_type),
+                            entry_type_to_string(actual_entry_type),
+                        ))
+
+    def assertEntryModeMatches(self, entry, actual_path):
+        # TODO: permissions in windows are... tricky.  Don't bother
+        # testing for them if we're in it for the time being
+        if os.name == 'nt':
+            return
+
+        actual_mode = stat.S_IMODE(os.stat(actual_path).st_mode)
+        expected_mode = int(entry.mode, 8)
+        self.assertEqual(actual_mode, expected_mode,
+                         "Entry {} has mode {:04o}, expected {:04o}".format(
+                            entry.dest, actual_mode, expected_mode,
+                        ))
+
     def test_manifest_matches(self):
-        # TODO-NOW: check for file attributes (mode, user, group)
-        found_entries = {dest : False for dest in self.manifest_data.keys()}
+        # TODO: check for ownership (user, group)
+        found_entries = {dest: False for dest in self.manifest_data.keys()}
         for root, dirs, files in os.walk(self.installdir):
+            rel_root_path = os.path.relpath(root, self.installdir)
+
             # TODO(nacl): check for treeartifacts here.  If so, prune `dirs`,
             # and set the rest aside for future processing.
 
-            # TODO-NOW: check for directory ownership.  If it's empty, it can
-            # only be owned (via a PackageDirsInfo).
-            #
-            # If it's not empty, it can be owned or unowned, depending on the
-            # overall context.
-            print(files)
-            if len(files) == 0:
-                # TODO-NOW: handle empty directories
-                pass
-            rel_root_path = os.path.relpath(root, self.installdir)
+            # Directory ownership tests
+            if len(files) == 0 and len(dirs) == 0:
+                # Empty directories must be explicitly requested by something
+                if rel_root_path not in self.manifest_data:
+                    self.fail("Directory {} not in manifest".format(rel_root_path))
+
+                entry = self.manifest_data[rel_root_path]
+                self.assertEntryTypeMatches(entry, root)
+                self.assertEntryModeMatches(entry, root)
+
+                found_entries[rel_root_path] = True
+            else:
+                # There's something in here.  Depending on how it was set up, it
+                # could either be owned or unowned.
+                if rel_root_path in self.manifest_data:
+                    entry = self.manifest_data[rel_root_path]
+                    self.assertEntryTypeMatches(entry, root)
+                    self.assertEntryModeMatches(entry, root)
+
+                    found_entries[rel_root_path] = True
+                else:
+                    print("{} is unowned".format(rel_root_path))
 
             for f in files:
                 # The path on the filesystem in which the file actually exists.
                 fpath = os.path.normpath("/".join([root, f]))
-                subprocess.call(["ls", "-l", fpath])
                 # The path inside the manifest (relative to the install
                 # destdir).
                 rel_fpath = os.path.normpath("/".join([rel_root_path, f]))
                 if rel_fpath not in self.manifest_data:
-                    print(self.manifest_data)
                     self.fail("Entity {} not in manifest".format(rel_fpath))
 
                 entry = self.manifest_data[rel_fpath]
-                real_etype = self.entity_type_at_path(fpath)
-
-                if entry.entry_type != real_etype:
-                    self.fail("Entity {} should be a {}, but was actually {}".format(
-                        fpath,
-                        entry_type_to_string(entry.entry_type),
-                        entry_type_to_string(real_etype),
-                    ))
+                self.assertEntryTypeMatches(entry, fpath)
+                self.assertEntryModeMatches(entry, fpath)
 
                 found_entries[rel_fpath] = True
-
-                # TODO: permissions in windows are... tricky.  Don't bother
-                # testing for them if we're in it for the time being
-                if os.name == 'nt':
-                    continue
 
         # TODO(nacl): check for TreeArtifacts
 

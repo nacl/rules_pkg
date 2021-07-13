@@ -49,6 +49,9 @@ class NativeInstaller(object):
             os.chmod(dest, int(mode, 8))
         if user or group:
             logging.info("CHOWN %s:%s %s", user, group, dest)
+            # TODO(nacl): This is unix-only
+            if os.getuid() == 0:
+                shutil.chown(dest, user, group)
 
     def _do_file_copy(self, src, dest, mode, user, group):
         logging.info("COPY %s <- %s", dest, src)
@@ -64,11 +67,11 @@ class NativeInstaller(object):
     def _maybe_make_unowned_dir(self, path):
         logging.info("MKDIR (unowned) %s", path)
         os.makedirs(path, 0o755, exist_ok=True)
-        if self.default_user or self.default_group:
-            logging.info("CHOWN %s:%s %s",
-                         self.default_user or "",
-                         self.default_group or "",
-                         path)
+        # if self.default_user or self.default_group:
+        #     logging.info("CHOWN %s:%s %s",
+        #                  self.default_user or "",
+        #                  self.default_group or "",
+        #                  path)
 
     def _install_file(self, entry):
         self._maybe_make_unowned_dir(os.path.dirname(entry.dest))
@@ -76,10 +79,9 @@ class NativeInstaller(object):
         self._chown_chmod(entry.dest, entry.mode, entry.user, entry.group)
 
     def _install_directory(self, entry):
-        real_dest = os.path.join(self.destdir, entry.dest)
-        self._maybe_make_unowned_dir(real_dest)
-        self._do_mkdir(real_dest, entry.mode, entry.user, entry.group)
-        self._chown_chmod(real_dest, entry.mode, entry.user, entry.group)
+        self._maybe_make_unowned_dir(os.path.dirname(entry.dest))
+        self._do_mkdir(entry.dest, entry.mode, entry.user, entry.group)
+        self._chown_chmod(entry.dest, entry.mode, entry.user, entry.group)
 
     def _install_treeartifact(self, entry):
         logging.info("COPYTREE %s <- %s/**", entry.dest, entry.src)

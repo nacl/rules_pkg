@@ -14,36 +14,56 @@
 
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 load("//tests/util:defs.bzl", "directory", "fake_artifact")
-load("//:mappings.bzl", "pkg_files", "pkg_attributes")
+load("//:mappings.bzl", "pkg_attributes", "pkg_files", "pkg_mkdirs")
 load("//:install.bzl", "pkg_install")
 load(":defs.bzl", "capture_pkg_install")
 
 py_test(
     name = "install",
     srcs = ["test.py"],
+    args = ["-v"],
     data = [
         ":test_installer",
     ],
     main = "test.py",
+    tags = ["requires-fakeroot"],
     deps = [
         "//private:manifest",
         "@rules_python//python/runfiles",
     ],
-    args = ["-v"],
-    tags = ["requires-fakeroot"],
 )
 
 pkg_install(
     name = "test_installer",
-    srcs = [":artifacts"],
+    srcs = [
+        ":artifact-in-owned-dir",
+        ":artifact-in-unowned-dir",
+        ":dirs",
+    ],
 )
 
 fake_artifact(
-    name = "single_file",
+    name = "artifact",
 )
 
 pkg_files(
-    name = "artifacts",
-    srcs = ["single_file"],
-    attributes = pkg_attributes(mode="0700"),
+    name = "artifact-in-owned-dir",
+    srcs = ["artifact"],
+    attributes = pkg_attributes(mode = "0700"),
+    prefix = "owned-dir",
+)
+
+pkg_files(
+    name = "artifact-in-unowned-dir",
+    srcs = ["artifact"],
+    attributes = pkg_attributes(mode = "0700"),
+    prefix = "unowned-dir",
+)
+
+pkg_mkdirs(
+    name = "dirs",
+    dirs = [
+        "empty-owned-dir",
+        "owned-dir",
+    ],
 )
